@@ -9,6 +9,7 @@ pub enum Opcode {
     // push value
     OP_0,
     OP_FALSE,
+    OP_PUSHBYTES(u8),
     OP_PUSHDATA1,
     OP_PUSHDATA2,
     OP_PUSHDATA4,
@@ -153,6 +154,18 @@ impl From<Opcode> for u8 {
             // push value
             Opcode::OP_0 => 0x00,
             Opcode::OP_FALSE => Opcode::OP_0.into(),
+            Opcode::OP_PUSHBYTES(x) => {
+                if x == 0 {
+                    // FIXME: check if this is true
+                    panic!(
+                        "The number of bytes to be pushed on the stack should be a positive value"
+                    )
+                } else if x >= 76 {
+                    panic!("Only maximum 75 bytes can be pushed on the stack")
+                } else {
+                    x
+                }
+            }
             Opcode::OP_PUSHDATA1 => 0x4c,
             Opcode::OP_PUSHDATA2 => 0x4d,
             Opcode::OP_PUSHDATA4 => 0x4e,
