@@ -21,6 +21,8 @@ impl Default for Stack {
         Self::new()
     }
 }
+
+// IMPROVEME: make a typed AST. I suggest to move it in `typed_script.rs`
 #[allow(non_camel_case_types, non_snake_case)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Opcode {
