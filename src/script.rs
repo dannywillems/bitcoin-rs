@@ -152,6 +152,152 @@ pub enum Opcode {
     OP_INVALIDOPCODE,
 }
 
+// FIXME: ignore if riscv32i
+impl std::fmt::Display for Opcode {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            // push value
+            Opcode::OP_0 => write!(f, "OP_0"),
+            Opcode::OP_FALSE => write!(f, "OP_FALSE"),
+            Opcode::OP_PUSHBYTES(x) => write!(f, "OP_PUSHBYTES{}", x),
+            Opcode::OP_PUSHDATA1 => write!(f, "OP_PUSHDATA1"),
+            Opcode::OP_PUSHDATA2 => write!(f, "OP_PUSHDATA2"),
+            Opcode::OP_PUSHDATA4 => write!(f, "OP_PUSHDATA4"),
+            Opcode::OP_1NEGATE => write!(f, "OP_1NEGATE"),
+            Opcode::OP_RESERVED => write!(f, "OP_RESERVED"),
+            Opcode::OP_1 => write!(f, "OP_1"),
+            Opcode::OP_TRUE => write!(f, "OP_TRUE"),
+            Opcode::OP_2 => write!(f, "OP_2"),
+            Opcode::OP_3 => write!(f, "OP_3"),
+            Opcode::OP_4 => write!(f, "OP_4"),
+            Opcode::OP_5 => write!(f, "OP_5"),
+            Opcode::OP_6 => write!(f, "OP_6"),
+            Opcode::OP_7 => write!(f, "OP_7"),
+            Opcode::OP_8 => write!(f, "OP_8"),
+            Opcode::OP_9 => write!(f, "OP_9"),
+            Opcode::OP_10 => write!(f, "OP_10"),
+            Opcode::OP_11 => write!(f, "OP_11"),
+            Opcode::OP_12 => write!(f, "OP_12"),
+            Opcode::OP_13 => write!(f, "OP_13"),
+            Opcode::OP_14 => write!(f, "OP_14"),
+            Opcode::OP_15 => write!(f, "OP_15"),
+            Opcode::OP_16 => write!(f, "OP_16"),
+
+            // control
+            Opcode::OP_NOP => write!(f, "OP_NOP"),
+            Opcode::OP_VER => write!(f, "OP_VER"),
+            Opcode::OP_IF => write!(f, "OP_IF"),
+            Opcode::OP_NOTIF => write!(f, "OP_NOTIF"),
+            Opcode::OP_VERIF => write!(f, "OP_VERIF"),
+            Opcode::OP_VERNOTIF => write!(f, "OP_VERNOTIF"),
+            Opcode::OP_ELSE => write!(f, "OP_ELSE"),
+            Opcode::OP_ENDIF => write!(f, "OP_ENDIF"),
+            Opcode::OP_VERIFY => write!(f, "OP_VERIFY"),
+            Opcode::OP_RETURN => write!(f, "OP_RETURN"),
+
+            // stack ops
+            Opcode::OP_TOALTSTACK => write!(f, "OP_TOALTSTACK"),
+            Opcode::OP_FROMALTSTACK => write!(f, "OP_FROMALTSTACK"),
+            Opcode::OP_2DROP => write!(f, "OP_2DROP"),
+            Opcode::OP_2DUP => write!(f, "OP_2DUP"),
+            Opcode::OP_3DUP => write!(f, "OP_3DUP"),
+            Opcode::OP_2OVER => write!(f, "OP_2OVER"),
+            Opcode::OP_2ROT => write!(f, "OP_2ROT"),
+            Opcode::OP_2SWAP => write!(f, "OP_2SWAP"),
+            Opcode::OP_IFDUP => write!(f, "OP_IFDUP"),
+            Opcode::OP_DEPTH => write!(f, "OP_DEPTH"),
+            Opcode::OP_DROP => write!(f, "OP_DROP"),
+            Opcode::OP_DUP => write!(f, "OP_DUP"),
+            Opcode::OP_NIP => write!(f, "OP_NIP"),
+            Opcode::OP_OVER => write!(f, "OP_OVER"),
+            Opcode::OP_PICK => write!(f, "OP_PICK"),
+            Opcode::OP_ROLL => write!(f, "OP_ROLL"),
+            Opcode::OP_ROT => write!(f, "OP_ROT"),
+            Opcode::OP_SWAP => write!(f, "OP_SWAP"),
+            Opcode::OP_TUCK => write!(f, "OP_TUCK"),
+
+            // splice ops
+            Opcode::OP_CAT => write!(f, "OP_CAT"),
+            Opcode::OP_SUBSTR => write!(f, "OP_SUBSTR"),
+            Opcode::OP_LEFT => write!(f, "OP_LEFT"),
+            Opcode::OP_RIGHT => write!(f, "OP_RIGHT"),
+            Opcode::OP_SIZE => write!(f, "OP_SIZE"),
+
+            // bit logic
+            Opcode::OP_INVERT => write!(f, "OP_INVERT"),
+            Opcode::OP_AND => write!(f, "OP_AND"),
+            Opcode::OP_OR => write!(f, "OP_OR"),
+            Opcode::OP_XOR => write!(f, "OP_XOR"),
+            Opcode::OP_EQUAL => write!(f, "OP_EQUAL"),
+            Opcode::OP_EQUALVERIFY => write!(f, "OP_EQUALVERIFY"),
+            Opcode::OP_RESERVED1 => write!(f, "OP_RESERVED1"),
+            Opcode::OP_RESERVED2 => write!(f, "OP_RESERVED2"),
+
+            // numeric
+            Opcode::OP_1ADD => write!(f, "OP_1ADD"),
+            Opcode::OP_1SUB => write!(f, "OP_1SUB"),
+            Opcode::OP_2MUL => write!(f, "OP_2MUL"),
+            Opcode::OP_2DIV => write!(f, "OP_2DIV"),
+            Opcode::OP_NEGATE => write!(f, "OP_NEGATE"),
+            Opcode::OP_ABS => write!(f, "OP_ABS"),
+            Opcode::OP_NOT => write!(f, "OP_NOT"),
+            Opcode::OP_0NOTEQUAL => write!(f, "OP_0NOTEQUAL"),
+
+            Opcode::OP_ADD => write!(f, "OP_ADD"),
+            Opcode::OP_SUB => write!(f, "OP_SUB"),
+            Opcode::OP_MUL => write!(f, "OP_MUL"),
+            Opcode::OP_DIV => write!(f, "OP_DIV"),
+            Opcode::OP_MOD => write!(f, "OP_MOD"),
+            Opcode::OP_LSHIFT => write!(f, "OP_LSHIFT"),
+            Opcode::OP_RSHIFT => write!(f, "OP_RSHIFT"),
+
+            Opcode::OP_BOOLAND => write!(f, "OP_BOOLAND"),
+            Opcode::OP_BOOLOR => write!(f, "OP_BOOLOR"),
+            Opcode::OP_NUMEQUAL => write!(f, "OP_NUMEQUAL"),
+            Opcode::OP_NUMEQUALVERIFY => write!(f, "OP_NUMEQUALVERIFY"),
+            Opcode::OP_NUMNOTEQUAL => write!(f, "OP_NUMNOTEQUAL"),
+            Opcode::OP_LESSTHAN => write!(f, "OP_LESSTHAN"),
+            Opcode::OP_GREATERTHAN => write!(f, "OP_GREATERTHAN"),
+            Opcode::OP_LESSTHANOREQUAL => write!(f, "OP_LESSTHANOREQUAL"),
+            Opcode::OP_GREATERTHANOREQUAL => write!(f, "OP_GREATERTHANOREQUAL"),
+            Opcode::OP_MIN => write!(f, "OP_MIN"),
+            Opcode::OP_MAX => write!(f, "OP_MAX"),
+
+            Opcode::OP_WITHIN => write!(f, "OP_WITHIN"),
+
+            // crypto
+            Opcode::OP_RIPEMD160 => write!(f, "OP_RIPEMD160"),
+            Opcode::OP_SHA1 => write!(f, "OP_SHA1"),
+            Opcode::OP_SHA256 => write!(f, "OP_SHA256"),
+            Opcode::OP_HASH160 => write!(f, "OP_HASH160"),
+            Opcode::OP_HASH256 => write!(f, "OP_HASH256"),
+            Opcode::OP_CODESEPARATOR => write!(f, "OP_CODESEPARATOR"),
+            Opcode::OP_CHECKSIG => write!(f, "OP_CHECKSIG"),
+            Opcode::OP_CHECKSIGVERIFY => write!(f, "OP_CHECKSIGVERIFY"),
+            Opcode::OP_CHECKMULTISIG => write!(f, "OP_CHECKMULTISIG"),
+            Opcode::OP_CHECKMULTISIGVERIFY => write!(f, "OP_CHECKMULTISIGVERIFY"),
+
+            // expansion
+            Opcode::OP_NOP1 => write!(f, "OP_NOP1"),
+            Opcode::OP_CHECKLOCKTIMEVERIFY => write!(f, "OP_CHECKLOCKTIMEVERIFY"),
+            Opcode::OP_NOP2 => write!(f, "OP_NOP2"),
+            Opcode::OP_CHECKSEQUENCEVERIFY => write!(f, "OP_CHECKSEQUENCEVERIFY"),
+            Opcode::OP_NOP3 => write!(f, "OP_NOP3"),
+            Opcode::OP_NOP4 => write!(f, "OP_NOP4"),
+            Opcode::OP_NOP5 => write!(f, "OP_NOP5"),
+            Opcode::OP_NOP6 => write!(f, "OP_NOP6"),
+            Opcode::OP_NOP7 => write!(f, "OP_NOP7"),
+            Opcode::OP_NOP8 => write!(f, "OP_NOP8"),
+            Opcode::OP_NOP9 => write!(f, "OP_NOP9"),
+            Opcode::OP_NOP10 => write!(f, "OP_NOP10"),
+
+            // Opcode added by BIP 342 (Tapscript)
+            Opcode::OP_CHECKSIGADD => write!(f, "OP_CHECKSIGADD"),
+
+            Opcode::OP_INVALIDOPCODE => write!(f, "OP_INVALIDOPCODE"),
+        }
+    }
+}
 impl From<u8> for Opcode {
     fn from(val: u8) -> Opcode {
         match val {
@@ -486,6 +632,22 @@ pub enum Term {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Script(Vec<Term>);
 
+// FIXME: ignore if riscv32i
+impl std::fmt::Display for Script {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let mut s = Vec::new();
+        for term in &self.0 {
+            match term {
+                Term::Instruction(op) => s.push(format!("{}", op)),
+                Term::Data(data) => {
+                    let data = hex::encode(data);
+                    s.push(format!("0x{}", data));
+                }
+            }
+        }
+        write!(f, "{}", s.join(" "))
+    }
+}
 impl Serialize for Script {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -644,5 +806,25 @@ mod tests {
         let res: Vec<u8> = serialize(&script).unwrap();
         let script2: Script = deserialize(&res).unwrap();
         assert_eq!(script, script2);
+    }
+
+    // FIXME: ignore if riscv32i
+    #[test]
+    pub fn test_display_asm() {
+        let data = "5468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73";
+        let data = hex::decode(data).unwrap();
+        let script = Script(vec![
+            Term::Instruction(Opcode::OP_PUSHBYTES(4)),
+            Term::Data(hex::decode("ffff001d").unwrap()),
+            Term::Instruction(Opcode::OP_PUSHBYTES(1)),
+            Term::Data(hex::decode("04").unwrap()),
+            Term::Instruction(Opcode::OP_PUSHBYTES(69)),
+            Term::Data(data),
+        ]);
+
+        assert_eq!(
+            script.to_string(),
+            "OP_PUSHBYTES4 0xffff001d OP_PUSHBYTES1 0x04 OP_PUSHBYTES69 0x5468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73"
+        );
     }
 }
