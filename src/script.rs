@@ -349,6 +349,10 @@ impl Script {
         });
         t
     }
+
+    pub fn new(instr: Vec<Term>) -> Self {
+        Self(instr)
+    }
 }
 
 #[cfg(test)]
