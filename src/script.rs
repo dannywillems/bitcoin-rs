@@ -293,6 +293,7 @@ impl From<Opcode> for u8 {
 }
 
 impl Opcode {
+    /// Date 2024-11-16, from https://btctools.org/opcodes-list
     pub fn is_activated(self) -> bool {
         !matches!(
             self,
