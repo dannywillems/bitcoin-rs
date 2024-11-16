@@ -1,6 +1,8 @@
 use crate::transaction::Transaction;
 use crate::utils::CompactBytes;
+use serde::Serialize;
 
+#[derive(Debug, Serialize)]
 pub struct Block {
     /// The version number for the block.
     pub version: [u8; 4],

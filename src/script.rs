@@ -340,6 +340,7 @@ pub enum Term {
     Data(Vec<u8>),
 }
 
+#[derive(Debug)]
 pub struct Script(Vec<Term>);
 
 impl Serialize for Script {

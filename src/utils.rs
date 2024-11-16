@@ -1,3 +1,5 @@
+use serde::{Serialize, Serializer};
+
 /// A compact size field is used in network messages to indicate the size of an
 /// upcoming field or the number of upcoming fields.
 /// It can store numbers between 0 and 18446744073709551615.
@@ -5,6 +7,7 @@
 /// other words, smaller numbers take up less space. This means you don't have
 /// to use a larger fixed-size field at all times to accommodate the largest
 /// acceptable number.
+#[derive(Debug)]
 pub enum CompactBytes {
     B1(u8),
     B2([u8; 2]),
@@ -28,5 +31,20 @@ impl From<Vec<u8>> for CompactBytes {
         } else {
             panic!("Unsupported number of bytes")
         }
+    }
+}
+
+impl Serialize for CompactBytes {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let res = match self {
+            CompactBytes::B1(b) => vec![*b],
+            CompactBytes::B2(b) => vec![0xFD, b[0], b[1]],
+            CompactBytes::B4(b) => vec![0xFE, b[0], b[1], b[2], b[3]],
+            CompactBytes::B8(b) => vec![0xFF, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]],
+        };
+        serializer.serialize_bytes(&res)
     }
 }

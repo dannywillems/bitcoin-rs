@@ -1,6 +1,8 @@
 use crate::script::Script;
 use crate::utils::CompactBytes;
+use serde::Serialize;
 
+#[derive(Debug, Serialize)]
 pub struct TransactionInput {
     /// The TXID of the transaction containing the output you want to spend.
     pub txid: [u8; 32],
@@ -14,6 +16,7 @@ pub struct TransactionInput {
     pub sequence: [u8; 4],
 }
 
+#[derive(Debug, Serialize)]
 pub struct TransactionOutput {
     /// The value of the output in satoshis.
     pub amount: u64,
@@ -23,6 +26,7 @@ pub struct TransactionOutput {
     pub script_sig: Script,
 }
 
+#[derive(Debug, Serialize)]
 pub struct StackItem {
     /// The size of the upcoming stack item.
     pub size: CompactBytes,
@@ -30,6 +34,7 @@ pub struct StackItem {
     pub item: Vec<u8>,
 }
 
+#[derive(Debug, Serialize)]
 pub struct Transaction {
     /// The version number for the transaction. Used to enable new features.
     pub version: [u8; 4],
