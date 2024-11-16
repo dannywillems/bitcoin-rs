@@ -290,3 +290,28 @@ impl From<Opcode> for usize {
         }
     }
 }
+
+impl Opcode {
+    pub fn is_activated(self) -> bool {
+        !matches!(
+            self,
+            Opcode::OP_CAT
+                | Opcode::OP_SUBSTR
+                | Opcode::OP_LEFT
+                | Opcode::OP_RIGHT
+                | Opcode::OP_INVERT
+                | Opcode::OP_AND
+                | Opcode::OP_OR
+                | Opcode::OP_XOR
+                | Opcode::OP_2MUL
+                | Opcode::OP_2DIV
+                | Opcode::OP_MUL
+                | Opcode::OP_DIV
+                | Opcode::OP_MOD
+                | Opcode::OP_LSHIFT
+                | Opcode::OP_RSHIFT
+                | Opcode::OP_CHECKMULTISIG
+                | Opcode::OP_CHECKMULTISIGVERIFY
+        )
+    }
+}
