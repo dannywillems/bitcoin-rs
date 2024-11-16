@@ -330,3 +330,11 @@ impl Opcode {
         )
     }
 }
+
+#[derive(Debug, Clone)]
+pub enum Term {
+    Instruction(Opcode),
+    Data(Vec<u8>),
+}
+
+pub type Script = Vec<Term>;
