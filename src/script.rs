@@ -3,6 +3,8 @@
 use core::convert::From;
 use core::convert::Into;
 
+use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
 use serde::Serializer;
 
@@ -475,13 +477,13 @@ impl Opcode {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Term {
     Instruction(Opcode),
     Data(Vec<u8>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Script(Vec<Term>);
 
 impl Serialize for Script {
@@ -495,6 +497,36 @@ impl Serialize for Script {
             Term::Data(data) => t.extend(data),
         });
         serializer.serialize_bytes(&t)
+    }
+}
+
+impl<'de> Deserialize<'de> for Script {
+    fn deserialize<D>(deserializer: D) -> Result<Script, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let data = Vec::<u8>::deserialize(deserializer)?;
+        let mut terms = vec![];
+        let mut i = 0;
+        while i < data.len() {
+            let opcode = data[i];
+            if opcode == 0 {
+                terms.push(Term::Instruction(Opcode::OP_0));
+                i += 1;
+            } else if opcode <= 75 {
+                // This is a OP_PUSHBYTES. We create the OP_PUSHBYTES opcode and the
+                // next {opcode} bytes are the data
+                terms.push(Term::Instruction(Opcode::OP_PUSHBYTES(opcode)));
+                i += 1;
+                let data = data[i..i + opcode as usize].to_vec();
+                i += opcode as usize;
+                terms.push(Term::Data(data));
+            } else {
+                terms.push(Term::Instruction(Opcode::from(opcode)));
+                i += 1;
+            }
+        }
+        Ok(Script(terms))
     }
 }
 
@@ -517,6 +549,7 @@ impl Script {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bincode::{deserialize, serialize};
     use hex;
 
     // Examples from https://learnmeabitcoin.com/technical/transaction/input/scriptsig/
@@ -598,5 +631,23 @@ mod tests {
             let exp_output = hex::decode(exp_output).unwrap();
             assert_eq!(exp_output, script.to_bytes());
         }
+    }
+
+    #[test]
+    pub fn test_serialize_and_deserialize() {
+        let data = "5468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73";
+        let data = hex::decode(data).unwrap();
+        let script = Script(vec![
+            Term::Instruction(Opcode::OP_PUSHBYTES(4)),
+            Term::Data(hex::decode("ffff001d").unwrap()),
+            Term::Instruction(Opcode::OP_PUSHBYTES(1)),
+            Term::Data(hex::decode("04").unwrap()),
+            Term::Instruction(Opcode::OP_PUSHBYTES(69)),
+            Term::Data(data),
+        ]);
+        // Checking serialize/deserialize works together
+        let res: Vec<u8> = serialize(&script).unwrap();
+        let script2: Script = deserialize(&res).unwrap();
+        assert_eq!(script, script2);
     }
 }
