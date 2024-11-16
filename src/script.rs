@@ -723,9 +723,9 @@ impl<'de> Deserialize<'de> for Script {
                 // next {opcode} bytes are the data
                 terms.push(Term::Instruction(Opcode::OP_PUSHBYTES(opcode)));
                 i += 1;
-                let data = data[i..i + opcode as usize].to_vec();
+                let local_data = data[i..i + opcode as usize].to_vec();
                 i += opcode as usize;
-                terms.push(Term::Data(data));
+                terms.push(Term::Data(local_data));
             } else {
                 terms.push(Term::Instruction(Opcode::from(opcode)));
                 i += 1;
