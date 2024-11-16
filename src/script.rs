@@ -147,8 +147,8 @@ pub enum Opcode {
 }
 
 #[allow(non_camel_case_types, non_snake_case)]
-impl From<Opcode> for usize {
-    fn from(val: Opcode) -> usize {
+impl From<Opcode> for u8 {
+    fn from(val: Opcode) -> u8 {
         match val {
             // push value
             Opcode::OP_0 => 0x00,
