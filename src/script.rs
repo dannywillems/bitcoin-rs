@@ -150,6 +150,147 @@ pub enum Opcode {
     OP_INVALIDOPCODE,
 }
 
+impl From<u8> for Opcode {
+    fn from(val: u8) -> Opcode {
+        match val {
+            0x00 => Opcode::OP_0,
+            x if (0x01..=0x4b).contains(&x) => Opcode::OP_PUSHBYTES(x),
+            0x4c => Opcode::OP_PUSHDATA1,
+            0x4d => Opcode::OP_PUSHDATA2,
+            0x4e => Opcode::OP_PUSHDATA4,
+            0x4f => Opcode::OP_1NEGATE,
+            0x50 => Opcode::OP_RESERVED,
+            0x51 => Opcode::OP_1,
+            0x52 => Opcode::OP_2,
+            0x53 => Opcode::OP_3,
+            0x54 => Opcode::OP_4,
+            0x55 => Opcode::OP_5,
+            0x56 => Opcode::OP_6,
+            0x57 => Opcode::OP_7,
+            0x58 => Opcode::OP_8,
+            0x59 => Opcode::OP_9,
+            0x5a => Opcode::OP_10,
+            0x5b => Opcode::OP_11,
+            0x5c => Opcode::OP_12,
+            0x5d => Opcode::OP_13,
+            0x5e => Opcode::OP_14,
+            0x5f => Opcode::OP_15,
+            0x60 => Opcode::OP_16,
+
+            // control
+            0x61 => Opcode::OP_NOP,
+            0x62 => Opcode::OP_VER,
+            0x63 => Opcode::OP_IF,
+            0x64 => Opcode::OP_NOTIF,
+            0x65 => Opcode::OP_VERIF,
+            0x66 => Opcode::OP_VERNOTIF,
+            0x67 => Opcode::OP_ELSE,
+            0x68 => Opcode::OP_ENDIF,
+            0x69 => Opcode::OP_VERIFY,
+            0x6a => Opcode::OP_RETURN,
+
+            // stack ops
+            0x6b => Opcode::OP_TOALTSTACK,
+            0x6c => Opcode::OP_FROMALTSTACK,
+            0x6d => Opcode::OP_2DROP,
+            0x6e => Opcode::OP_2DUP,
+            0x6f => Opcode::OP_3DUP,
+            0x70 => Opcode::OP_2OVER,
+            0x71 => Opcode::OP_2ROT,
+            0x72 => Opcode::OP_2SWAP,
+            0x73 => Opcode::OP_IFDUP,
+            0x74 => Opcode::OP_DEPTH,
+            0x75 => Opcode::OP_DROP,
+            0x76 => Opcode::OP_DUP,
+            0x77 => Opcode::OP_NIP,
+            0x78 => Opcode::OP_OVER,
+            0x79 => Opcode::OP_PICK,
+            0x7a => Opcode::OP_ROLL,
+            0x7b => Opcode::OP_ROT,
+            0x7c => Opcode::OP_SWAP,
+            0x7d => Opcode::OP_TUCK,
+
+            // splice ops
+            0x7e => Opcode::OP_CAT,
+            0x7f => Opcode::OP_SUBSTR,
+            0x80 => Opcode::OP_LEFT,
+            0x81 => Opcode::OP_RIGHT,
+            0x82 => Opcode::OP_SIZE,
+
+            // bit logic
+            0x83 => Opcode::OP_INVERT,
+            0x84 => Opcode::OP_AND,
+            0x85 => Opcode::OP_OR,
+            0x86 => Opcode::OP_XOR,
+            0x87 => Opcode::OP_EQUAL,
+            0x88 => Opcode::OP_EQUALVERIFY,
+            0x89 => Opcode::OP_RESERVED1,
+            0x8a => Opcode::OP_RESERVED2,
+
+            // numeric
+            0x8b => Opcode::OP_1ADD,
+            0x8c => Opcode::OP_1SUB,
+            0x8d => Opcode::OP_2MUL,
+            0x8e => Opcode::OP_2DIV,
+            0x8f => Opcode::OP_NEGATE,
+            0x90 => Opcode::OP_ABS,
+            0x91 => Opcode::OP_NOT,
+            0x92 => Opcode::OP_0NOTEQUAL,
+            0x93 => Opcode::OP_ADD,
+            0x94 => Opcode::OP_SUB,
+            0x95 => Opcode::OP_MUL,
+            0x96 => Opcode::OP_DIV,
+            0x97 => Opcode::OP_MOD,
+            0x98 => Opcode::OP_LSHIFT,
+            0x99 => Opcode::OP_RSHIFT,
+            0x9a => Opcode::OP_BOOLAND,
+            0x9b => Opcode::OP_BOOLOR,
+            0x9c => Opcode::OP_NUMEQUAL,
+            0x9d => Opcode::OP_NUMEQUALVERIFY,
+            0x9e => Opcode::OP_NUMNOTEQUAL,
+            0x9f => Opcode::OP_LESSTHAN,
+            0xa0 => Opcode::OP_GREATERTHAN,
+            0xa1 => Opcode::OP_LESSTHANOREQUAL,
+            0xa2 => Opcode::OP_GREATERTHANOREQUAL,
+            0xa3 => Opcode::OP_MIN,
+            0xa4 => Opcode::OP_MAX,
+
+            0xa5 => Opcode::OP_WITHIN,
+
+            // crypto
+            0xa6 => Opcode::OP_RIPEMD160,
+            0xa7 => Opcode::OP_SHA1,
+            0xa8 => Opcode::OP_SHA256,
+            0xa9 => Opcode::OP_HASH160,
+            0xaa => Opcode::OP_HASH256,
+            0xab => Opcode::OP_CODESEPARATOR,
+            0xac => Opcode::OP_CHECKSIG,
+            0xad => Opcode::OP_CHECKSIGVERIFY,
+            0xae => Opcode::OP_CHECKMULTISIG,
+            0xaf => Opcode::OP_CHECKMULTISIGVERIFY,
+
+            // expansion
+            0xb0 => Opcode::OP_NOP1,
+            0xb1 => Opcode::OP_CHECKLOCKTIMEVERIFY,
+            0xb2 => Opcode::OP_CHECKSEQUENCEVERIFY,
+            0xb3 => Opcode::OP_NOP4,
+            0xb4 => Opcode::OP_NOP5,
+            0xb5 => Opcode::OP_NOP6,
+            0xb6 => Opcode::OP_NOP7,
+            0xb7 => Opcode::OP_NOP8,
+            0xb8 => Opcode::OP_NOP9,
+            0xb9 => Opcode::OP_NOP10,
+
+            // Opcode added by BIP 342 (Tapscript)
+            0xba => Opcode::OP_CHECKSIGADD,
+
+            // Instruction from 0xbb and 0xfe are reserved for future use
+            0xff => Opcode::OP_INVALIDOPCODE,
+            _ => panic!("Invalid opcode"),
+        }
+    }
+}
+
 #[allow(non_camel_case_types, non_snake_case)]
 impl From<Opcode> for u8 {
     fn from(val: Opcode) -> u8 {
