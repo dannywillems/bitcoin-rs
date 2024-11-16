@@ -3,6 +3,9 @@
 use core::convert::From;
 use core::convert::Into;
 
+use serde::Serialize;
+use serde::Serializer;
+
 #[allow(non_camel_case_types, non_snake_case)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Opcode {
@@ -338,6 +341,20 @@ pub enum Term {
 }
 
 pub struct Script(Vec<Term>);
+
+impl Serialize for Script {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut t: Vec<u8> = vec![];
+        self.0.iter().for_each(|x| match x {
+            Term::Instruction(op) => t.push(u8::from(*op)),
+            Term::Data(data) => t.extend(data),
+        });
+        serializer.serialize_bytes(&t)
+    }
+}
 
 impl Script {
     // FIXME: use a serializer/deserializer
