@@ -531,14 +531,9 @@ impl<'de> Deserialize<'de> for Script {
 }
 
 impl Script {
-    // FIXME: use a serializer/deserializer
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut t: Vec<u8> = vec![];
-        self.0.iter().for_each(|x| match x {
-            Term::Instruction(op) => t.push(u8::from(*op)),
-            Term::Data(data) => t.extend(data),
-        });
-        t
+        let x = bincode::serialize(&self).unwrap();
+        x[8..].to_vec()
     }
 
     pub fn new(instr: Vec<Term>) -> Self {
