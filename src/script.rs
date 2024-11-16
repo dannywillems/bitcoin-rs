@@ -4,6 +4,7 @@ use core::convert::From;
 use core::convert::Into;
 
 #[allow(non_camel_case_types, non_snake_case)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Opcode {
     // push value
     OP_0,
