@@ -1,6 +1,6 @@
 //! This module provides an implementation of Bitcoin script
 
-#[allow(non_camel_case_types, non_snake_case, dead_code)]
+#[allow(non_camel_case_types, non_snake_case)]
 pub enum Opcode {
     // push value
     OP_0,
@@ -142,7 +142,7 @@ pub enum Opcode {
     OP_INVALIDOPCODE,
 }
 
-#[allow(non_camel_case_types, non_snake_case, dead_code)]
+#[allow(non_camel_case_types, non_snake_case)]
 impl From<Opcode> for usize {
     fn from(val: Opcode) -> usize {
         match val {
