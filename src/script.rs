@@ -8,6 +8,19 @@ use serde::Deserializer;
 use serde::Serialize;
 use serde::Serializer;
 
+pub struct Stack(Vec<Vec<u8>>);
+
+impl Stack {
+    pub fn new() -> Self {
+        Self(vec![])
+    }
+}
+
+impl Default for Stack {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 #[allow(non_camel_case_types, non_snake_case)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Opcode {
