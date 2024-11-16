@@ -7,6 +7,7 @@ edition = "2021"
 # By default, std is activated. Deactivating it for RISC-V compilation
 # Allowing alloc for structures allocated on the heap.
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
+serde = { version = "1.0", default-features = false, features = ["alloc"] }
 
 [profile.release]
 lto = true
