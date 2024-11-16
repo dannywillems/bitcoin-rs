@@ -337,15 +337,18 @@ pub enum Term {
     Data(Vec<u8>),
 }
 
-pub type Script = Vec<Term>;
+pub struct Script(Vec<Term>);
 
-pub fn script_to_bytes(script: &Script) -> Vec<u8> {
-    let mut t: Vec<u8> = vec![];
-    script.iter().for_each(|x| match x {
-        Term::Instruction(op) => t.push(u8::from(*op)),
-        Term::Data(data) => t.extend(data),
-    });
-    t
+impl Script {
+    // FIXME: use a serializer/deserializer
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut t: Vec<u8> = vec![];
+        self.0.iter().for_each(|x| match x {
+            Term::Instruction(op) => t.push(u8::from(*op)),
+            Term::Data(data) => t.extend(data),
+        });
+        t
+    }
 }
 
 #[cfg(test)]
@@ -362,41 +365,41 @@ mod tests {
             let hex_data: Vec<u8> = hex::decode(data).unwrap();
             let data2 = "03f0609c81a45f8cab67fc2d050c21b1acd3d37c7acfd54041be6601ab4cef4f31";
             let hex_data2: Vec<u8> = hex::decode(data2).unwrap();
-            let script = vec![
+            let script = Script(vec![
                 Term::Instruction(Opcode::OP_PUSHBYTES(72)),
                 Term::Data(hex_data),
                 Term::Instruction(Opcode::OP_PUSHBYTES(33)),
                 Term::Data(hex_data2),
-            ];
+            ]);
 
             let exp_output = "483045022100c233c3a8a510e03ad18b0a24694ef00c78101bfd5ac075b8c1037952ce26e91e02205aa5f8f88f29bb4ad5808ebc12abfd26bd791256f367b04c6d955f01f28a7724012103f0609c81a45f8cab67fc2d050c21b1acd3d37c7acfd54041be6601ab4cef4f31";
             let exp_output = hex::decode(exp_output).unwrap();
-            assert_eq!(exp_output, script_to_bytes(&script));
+            assert_eq!(exp_output, script.to_bytes());
         }
         // P2PK
         {
             let data = "30440220576497b7e6f9b553c0aba0d8929432550e092db9c130aae37b84b545e7f4a36c022066cb982ed80608372c139d7bb9af335423d5280350fe3e06bd510e695480914f01";
             let data: Vec<u8> = hex::decode(data).unwrap();
-            let script = vec![
+            let script = Script(vec![
                 Term::Instruction(Opcode::OP_PUSHBYTES(71)),
                 Term::Data(data),
-            ];
+            ]);
             let exp_output = "4730440220576497b7e6f9b553c0aba0d8929432550e092db9c130aae37b84b545e7f4a36c022066cb982ed80608372c139d7bb9af335423d5280350fe3e06bd510e695480914f01";
             let exp_output = hex::decode(exp_output).unwrap();
-            assert_eq!(exp_output, script_to_bytes(&script));
+            assert_eq!(exp_output, script.to_bytes());
         }
         // P2MS
         {
             let data = "304502204aa764d2b30f572cc4ef17c8ed8536c46f595a08ba41a611b14f32c60282c150022100ede45011be565dc225cc9be292638cf7270b129934fe8758634716b8f7a34c0701";
             let data = hex::decode(data).unwrap();
-            let script = vec![
+            let script = Script(vec![
                 Term::Instruction(Opcode::OP_0),
                 Term::Instruction(Opcode::OP_PUSHBYTES(72)),
                 Term::Data(data),
-            ];
+            ]);
             let exp_output = "0048304502204aa764d2b30f572cc4ef17c8ed8536c46f595a08ba41a611b14f32c60282c150022100ede45011be565dc225cc9be292638cf7270b129934fe8758634716b8f7a34c0701";
             let exp_output = hex::decode(exp_output).unwrap();
-            assert_eq!(exp_output, script_to_bytes(&script));
+            assert_eq!(exp_output, script.to_bytes());
         }
         // P2SH
         {
@@ -405,32 +408,32 @@ mod tests {
 
             let data2 = "5121022afc20bf379bc96a2f4e9e63ffceb8652b2b6a097f63fbee6ecec2a49a48010e2103a767c7221e9f15f870f1ad9311f5ab937d79fcaeee15bb2c722bca515581b4c052ae";
             let data2 = hex::decode(data2).unwrap();
-            let script = vec![
+            let script = Script(vec![
                 Term::Instruction(Opcode::OP_0),
                 Term::Instruction(Opcode::OP_PUSHBYTES(71)),
                 Term::Data(data),
                 Term::Instruction(Opcode::OP_PUSHBYTES(71)),
                 Term::Data(data2),
-            ];
+            ]);
             let exp_output = "00473044022100d0ed946330182916da16a6149cd313a4b1a7b41591ee52fb3e79d64e36139d66021f6ccf173040ef24cb45c4db3e9c771c938a1ba2cf8d2404416f70886e360af401475121022afc20bf379bc96a2f4e9e63ffceb8652b2b6a097f63fbee6ecec2a49a48010e2103a767c7221e9f15f870f1ad9311f5ab937d79fcaeee15bb2c722bca515581b4c052ae";
             let exp_output = hex::decode(exp_output).unwrap();
-            assert_eq!(exp_output, script_to_bytes(&script));
+            assert_eq!(exp_output, script.to_bytes());
         }
         // Genesis bloc - coinbase
         {
             let data = "5468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73";
             let data = hex::decode(data).unwrap();
-            let script = vec![
+            let script = Script(vec![
                 Term::Instruction(Opcode::OP_PUSHBYTES(4)),
                 Term::Data(hex::decode("ffff001d").unwrap()),
                 Term::Instruction(Opcode::OP_PUSHBYTES(1)),
                 Term::Data(hex::decode("04").unwrap()),
                 Term::Instruction(Opcode::OP_PUSHBYTES(69)),
                 Term::Data(data),
-            ];
+            ]);
             let exp_output = "04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73";
             let exp_output = hex::decode(exp_output).unwrap();
-            assert_eq!(exp_output, script_to_bytes(&script));
+            assert_eq!(exp_output, script.to_bytes());
         }
     }
 }
