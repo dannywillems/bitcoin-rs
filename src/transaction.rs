@@ -49,5 +49,5 @@ pub struct Transaction {
     /// The list should be the same size than the number of outputs.
     pub witnesses: Vec<(u8, StackItem)>,
     /// Set a time or height after which the transaction can be mined.
-    pub lock_tim: [u8; 4],
+    pub lock_time: [u8; 4],
 }
