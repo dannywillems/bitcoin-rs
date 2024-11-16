@@ -3,6 +3,10 @@ name = "bitcoin-rs"
 version = "0.1.0"
 edition = "2021"
 
+[dependencies]
+# FIXME: By default, std is activated. Deactivating it for RISC-V compilation
+hex = { version = "0.4", default-features = true }
+
 [profile.release]
 lto = true
 panic = 'abort'
