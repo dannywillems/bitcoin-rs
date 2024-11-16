@@ -30,9 +30,9 @@ pub enum Opcode {
     OP_0,
     OP_FALSE,
     OP_PUSHBYTES(u8),
-    OP_PUSHDATA1,
-    OP_PUSHDATA2,
-    OP_PUSHDATA4,
+    OP_PUSHDATA1(u8),
+    OP_PUSHDATA2([u8; 2]),
+    OP_PUSHDATA4([u8; 4]),
     OP_1NEGATE,
     OP_RESERVED,
     OP_1,
@@ -175,9 +175,11 @@ impl std::fmt::Display for Opcode {
             Opcode::OP_0 => write!(f, "OP_0"),
             Opcode::OP_FALSE => write!(f, "OP_FALSE"),
             Opcode::OP_PUSHBYTES(x) => write!(f, "OP_PUSHBYTES{}", x),
-            Opcode::OP_PUSHDATA1 => write!(f, "OP_PUSHDATA1"),
-            Opcode::OP_PUSHDATA2 => write!(f, "OP_PUSHDATA2"),
-            Opcode::OP_PUSHDATA4 => write!(f, "OP_PUSHDATA4"),
+            Opcode::OP_PUSHDATA1(x) => write!(f, "OP_PUSHDATA1 {:x?}", x),
+            Opcode::OP_PUSHDATA2([x1, x2]) => write!(f, "OP_PUSHDATA2 {:x?}{:x?}", x1, x2),
+            Opcode::OP_PUSHDATA4([x1, x2, x3, x4]) => {
+                write!(f, "OP_PUSHDATA4 {:x?}{:x?}{:x?}{:x?}", x1, x2, x3, x4)
+            }
             Opcode::OP_1NEGATE => write!(f, "OP_1NEGATE"),
             Opcode::OP_RESERVED => write!(f, "OP_RESERVED"),
             Opcode::OP_1 => write!(f, "OP_1"),
@@ -318,9 +320,13 @@ impl From<u8> for Opcode {
         match val {
             0x00 => Opcode::OP_0,
             x if (0x01..=0x4b).contains(&x) => Opcode::OP_PUSHBYTES(x),
-            0x4c => Opcode::OP_PUSHDATA1,
-            0x4d => Opcode::OP_PUSHDATA2,
-            0x4e => Opcode::OP_PUSHDATA4,
+            // Note that the value won't be correct as it depends on the next
+            // bytes
+            // Considered alone, the OP_PUSHDATA1, OP_PUSHDATA2 and OP_PUSHDATA4
+            // instructions are not correctly decoded from u8
+            0x4c => Opcode::OP_PUSHDATA1(0),
+            0x4d => Opcode::OP_PUSHDATA2([0, 0]),
+            0x4e => Opcode::OP_PUSHDATA4([0, 0, 0, 0]),
             0x4f => Opcode::OP_1NEGATE,
             0x50 => Opcode::OP_RESERVED,
             0x51 => Opcode::OP_1,
@@ -473,9 +479,9 @@ impl From<Opcode> for u8 {
                     x
                 }
             }
-            Opcode::OP_PUSHDATA1 => 0x4c,
-            Opcode::OP_PUSHDATA2 => 0x4d,
-            Opcode::OP_PUSHDATA4 => 0x4e,
+            Opcode::OP_PUSHDATA1(_) => 0x4c,
+            Opcode::OP_PUSHDATA2(_) => 0x4d,
+            Opcode::OP_PUSHDATA4(_) => 0x4e,
             Opcode::OP_1NEGATE => 0x4f,
             Opcode::OP_RESERVED => 0x50,
             Opcode::OP_1 => 0x51,
@@ -669,9 +675,31 @@ impl Serialize for Script {
         S: Serializer,
     {
         let mut t: Vec<u8> = vec![];
-        self.0.iter().for_each(|x| match x {
-            Term::Instruction(op) => t.push(u8::from(*op)),
-            Term::Data(data) => t.extend(data),
+        self.0.iter().for_each(|c| match c {
+            Term::Instruction(op) => match op {
+                Opcode::OP_PUSHDATA1(x) => {
+                    t.push(u8::from(*op));
+                    t.push(*x);
+                }
+                Opcode::OP_PUSHDATA2([x1, x2]) => {
+                    t.push(u8::from(*op));
+                    t.push(*x1);
+                    t.push(*x2);
+                }
+                Opcode::OP_PUSHDATA4([x1, x2, x3, x4]) => {
+                    t.push(u8::from(*op));
+                    t.push(*x1);
+                    t.push(*x2);
+                    t.push(*x3);
+                    t.push(*x4);
+                }
+                _ => {
+                    t.push(u8::from(*op));
+                }
+            },
+            Term::Data(data) => {
+                t.extend(data);
+            }
         });
         serializer.serialize_bytes(&t)
     }
@@ -803,6 +831,19 @@ mod tests {
             let exp_output = hex::decode(exp_output).unwrap();
             assert_eq!(exp_output, script.to_bytes());
         }
+    }
+
+    #[test]
+    pub fn test_decode_pushdata1() {
+        let data = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let data = hex::decode(data).unwrap();
+        let script = Script(vec![
+            Term::Instruction(Opcode::OP_PUSHDATA1(0x4c)),
+            Term::Data(data),
+        ]);
+        let exp_output = "4c4caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let exp_output = hex::decode(exp_output).unwrap();
+        assert_eq!(exp_output, script.to_bytes());
     }
 
     #[test]
