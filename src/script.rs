@@ -1,5 +1,8 @@
 //! This module provides an implementation of Bitcoin script
 
+use core::convert::From;
+use core::convert::Into;
+
 #[allow(non_camel_case_types, non_snake_case)]
 pub enum Opcode {
     // push value
