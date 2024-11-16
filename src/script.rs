@@ -385,5 +385,52 @@ mod tests {
             let exp_output = hex::decode(exp_output).unwrap();
             assert_eq!(exp_output, script_to_bytes(&script));
         }
+        // P2MS
+        {
+            let data = "304502204aa764d2b30f572cc4ef17c8ed8536c46f595a08ba41a611b14f32c60282c150022100ede45011be565dc225cc9be292638cf7270b129934fe8758634716b8f7a34c0701";
+            let data = hex::decode(data).unwrap();
+            let script = vec![
+                Term::Instruction(Opcode::OP_0),
+                Term::Instruction(Opcode::OP_PUSHBYTES(72)),
+                Term::Data(data),
+            ];
+            let exp_output = "0048304502204aa764d2b30f572cc4ef17c8ed8536c46f595a08ba41a611b14f32c60282c150022100ede45011be565dc225cc9be292638cf7270b129934fe8758634716b8f7a34c0701";
+            let exp_output = hex::decode(exp_output).unwrap();
+            assert_eq!(exp_output, script_to_bytes(&script));
+        }
+        // P2SH
+        {
+            let data = "3044022100d0ed946330182916da16a6149cd313a4b1a7b41591ee52fb3e79d64e36139d66021f6ccf173040ef24cb45c4db3e9c771c938a1ba2cf8d2404416f70886e360af401";
+            let data = hex::decode(data).unwrap();
+
+            let data2 = "5121022afc20bf379bc96a2f4e9e63ffceb8652b2b6a097f63fbee6ecec2a49a48010e2103a767c7221e9f15f870f1ad9311f5ab937d79fcaeee15bb2c722bca515581b4c052ae";
+            let data2 = hex::decode(data2).unwrap();
+            let script = vec![
+                Term::Instruction(Opcode::OP_0),
+                Term::Instruction(Opcode::OP_PUSHBYTES(71)),
+                Term::Data(data),
+                Term::Instruction(Opcode::OP_PUSHBYTES(71)),
+                Term::Data(data2),
+            ];
+            let exp_output = "00473044022100d0ed946330182916da16a6149cd313a4b1a7b41591ee52fb3e79d64e36139d66021f6ccf173040ef24cb45c4db3e9c771c938a1ba2cf8d2404416f70886e360af401475121022afc20bf379bc96a2f4e9e63ffceb8652b2b6a097f63fbee6ecec2a49a48010e2103a767c7221e9f15f870f1ad9311f5ab937d79fcaeee15bb2c722bca515581b4c052ae";
+            let exp_output = hex::decode(exp_output).unwrap();
+            assert_eq!(exp_output, script_to_bytes(&script));
+        }
+        // Genesis bloc - coinbase
+        {
+            let data = "5468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73";
+            let data = hex::decode(data).unwrap();
+            let script = vec![
+                Term::Instruction(Opcode::OP_PUSHBYTES(4)),
+                Term::Data(hex::decode("ffff001d").unwrap()),
+                Term::Instruction(Opcode::OP_PUSHBYTES(1)),
+                Term::Data(hex::decode("04").unwrap()),
+                Term::Instruction(Opcode::OP_PUSHBYTES(69)),
+                Term::Data(data),
+            ];
+            let exp_output = "04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73";
+            let exp_output = hex::decode(exp_output).unwrap();
+            assert_eq!(exp_output, script_to_bytes(&script));
+        }
     }
 }
