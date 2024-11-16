@@ -726,6 +726,23 @@ impl<'de> Deserialize<'de> for Script {
                 let local_data = data[i..i + opcode as usize].to_vec();
                 i += opcode as usize;
                 terms.push(Term::Data(local_data));
+            } else if opcode == 76 {
+                let nb_bytes = data[i + 1];
+                assert!(nb_bytes >= 76);
+                let local_data = data[i + 2..i + 2 + nb_bytes as usize].to_vec();
+                i += 1 + 1 + nb_bytes as usize;
+                terms.push(Term::Instruction(Opcode::OP_PUSHDATA1(nb_bytes)));
+                terms.push(Term::Data(local_data));
+            } else if opcode == 77 {
+                let b1 = data[i + 1];
+                let b2 = data[i + 2];
+                let nb_bytes = b1 << 16 + b2;
+                let local_data = data[i + 3..i + 3 + nb_bytes as usize].to_vec();
+                i += 2 + 1 + nb_bytes as usize;
+                terms.push(Term::Instruction(Opcode::OP_PUSHDATA2([b1, b2])));
+                terms.push(Term::Data(local_data));
+            } else if opcode == 78 {
+                unimplemented!("TODO")
             } else {
                 terms.push(Term::Instruction(Opcode::from(opcode)));
                 i += 1;
@@ -842,6 +859,19 @@ mod tests {
             Term::Data(data),
         ]);
         let exp_output = "4c4caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let exp_output = hex::decode(exp_output).unwrap();
+        assert_eq!(exp_output, script.to_bytes());
+    }
+
+    #[test]
+    pub fn test_decode_pushdata2() {
+        let data = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let data = hex::decode(data).unwrap();
+        let script = Script(vec![
+            Term::Instruction(Opcode::OP_PUSHDATA2([0x00, 0x01])),
+            Term::Data(data),
+        ]);
+        let exp_output = "4d0001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         let exp_output = hex::decode(exp_output).unwrap();
         assert_eq!(exp_output, script.to_bytes());
     }
