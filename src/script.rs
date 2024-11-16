@@ -338,3 +338,52 @@ pub enum Term {
 }
 
 pub type Script = Vec<Term>;
+
+pub fn script_to_bytes(script: &Script) -> Vec<u8> {
+    let mut t: Vec<u8> = vec![];
+    script.iter().for_each(|x| match x {
+        Term::Instruction(op) => t.push(u8::from(*op)),
+        Term::Data(data) => t.extend(data),
+    });
+    t
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hex;
+
+    // Examples from https://learnmeabitcoin.com/technical/transaction/input/scriptsig/
+    #[test]
+    pub fn test_to_bytes() {
+        // P2PKH
+        {
+            let data = "3045022100c233c3a8a510e03ad18b0a24694ef00c78101bfd5ac075b8c1037952ce26e91e02205aa5f8f88f29bb4ad5808ebc12abfd26bd791256f367b04c6d955f01f28a772401";
+            let hex_data: Vec<u8> = hex::decode(data).unwrap();
+            let data2 = "03f0609c81a45f8cab67fc2d050c21b1acd3d37c7acfd54041be6601ab4cef4f31";
+            let hex_data2: Vec<u8> = hex::decode(data2).unwrap();
+            let script = vec![
+                Term::Instruction(Opcode::OP_PUSHBYTES(72)),
+                Term::Data(hex_data),
+                Term::Instruction(Opcode::OP_PUSHBYTES(33)),
+                Term::Data(hex_data2),
+            ];
+
+            let exp_output = "483045022100c233c3a8a510e03ad18b0a24694ef00c78101bfd5ac075b8c1037952ce26e91e02205aa5f8f88f29bb4ad5808ebc12abfd26bd791256f367b04c6d955f01f28a7724012103f0609c81a45f8cab67fc2d050c21b1acd3d37c7acfd54041be6601ab4cef4f31";
+            let exp_output = hex::decode(exp_output).unwrap();
+            assert_eq!(exp_output, script_to_bytes(&script));
+        }
+        // P2PK
+        {
+            let data = "30440220576497b7e6f9b553c0aba0d8929432550e092db9c130aae37b84b545e7f4a36c022066cb982ed80608372c139d7bb9af335423d5280350fe3e06bd510e695480914f01";
+            let data: Vec<u8> = hex::decode(data).unwrap();
+            let script = vec![
+                Term::Instruction(Opcode::OP_PUSHBYTES(71)),
+                Term::Data(data),
+            ];
+            let exp_output = "4730440220576497b7e6f9b553c0aba0d8929432550e092db9c130aae37b84b545e7f4a36c022066cb982ed80608372c139d7bb9af335423d5280350fe3e06bd510e695480914f01";
+            let exp_output = hex::decode(exp_output).unwrap();
+            assert_eq!(exp_output, script_to_bytes(&script));
+        }
+    }
+}
