@@ -4,11 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+bincode = "*"
+bs58 = { version = "0.5.1" }
 # By default, std is activated. Deactivating it for RISC-V compilation
 # Allowing alloc for structures allocated on the heap.
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
+ripemd = { version = "0.1.3" }
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
-bincode = "*"
+sha2 = { version = "0.10.8" }
 
 [profile.release]
 lto = true
