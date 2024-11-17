@@ -738,7 +738,7 @@ impl<'de> Deserialize<'de> for Script {
                 let b2 = data[i + 2];
                 let mut nb_bytes: u64 = b1.into();
                 nb_bytes = (nb_bytes << 8) + (b2 as u64);
-                nb_bytes = nb_bytes << 8;
+                nb_bytes <<= 8;
                 let local_data = data[i + 3..i + 3 + nb_bytes as usize].to_vec();
                 i += 2 + 1 + nb_bytes as usize;
                 terms.push(Term::Instruction(Opcode::OP_PUSHDATA2([b1, b2])));
@@ -752,7 +752,7 @@ impl<'de> Deserialize<'de> for Script {
                 nb_bytes = (nb_bytes << 8) + (b2 as u64);
                 nb_bytes = (nb_bytes << 8) + (b3 as u64);
                 nb_bytes = (nb_bytes << 8) + (b4 as u64);
-                nb_bytes = nb_bytes << 8;
+                nb_bytes <<= 8;
                 let local_data = data[i + 5..i + 5 + nb_bytes as usize].to_vec();
                 i += 5 + 1 + nb_bytes as usize;
                 terms.push(Term::Instruction(Opcode::OP_PUSHDATA4([b1, b2, b3, b4])));
