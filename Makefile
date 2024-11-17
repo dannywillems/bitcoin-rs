@@ -31,3 +31,12 @@ setup-toolchain-riscv32i:
 
 build-riscv32i: setup-toolchain-riscv32i
 	cargo build --release --target "riscv32i-unknown-none-elf" --all-features
+
+generate-doc:
+		@echo ""
+		@echo "Generating the documentation."
+		@echo ""
+		RUSTDOCFLAGS="-D warnings" cargo doc --all-features --no-deps
+		@echo ""
+		@echo "The documentation is available at: ./target/doc"
+		@echo ""
