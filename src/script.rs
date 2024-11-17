@@ -3,10 +3,13 @@
 use core::convert::From;
 use core::convert::Into;
 
+use ripemd::Digest;
+use ripemd::Ripemd160;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
 use serde::Serializer;
+use sha2::Sha256;
 
 #[derive(Clone)]
 pub struct Stack(Vec<Vec<u8>>);
@@ -788,7 +791,7 @@ impl From<Opcode> for u8 {
 }
 
 impl Opcode {
-    /// Date 2024-11-16, from https://btctools.org/opcodes-list
+    /// Date 2024-11-16, from <https://btctools.org/opcodes-list>
     pub fn is_activated(self) -> bool {
         !matches!(
             self,
@@ -950,6 +953,68 @@ impl Script {
 
     pub fn new(instr: Vec<Term>) -> Self {
         Self(instr)
+    }
+
+    pub fn interpret(&self, stack: Stack) -> bool {
+        let mut stack = stack.clone();
+        let mut exp_bytes: Option<usize> = None;
+        // FIXME: remove clone
+        for c in self.0.clone() {
+            println!("Interpreting {:?}", c);
+            match c {
+                Term::Data(v) => {
+                    if exp_bytes.is_none() {
+                        // A "push value" pcode should have been used just before.
+                        return false;
+                    } else {
+                        let data = v.to_vec();
+                        let exp_data_length = exp_bytes.unwrap();
+                        if exp_data_length != data.len() {
+                            // Wrong data length
+                            return false;
+                        } else {
+                            stack.0.push(data)
+                        }
+                    }
+                }
+                Term::Instruction(opcode) => match opcode {
+                    Opcode::OP_0 => stack.0.push(vec![0]),
+                    Opcode::OP_FALSE => stack.0.push(vec![0]),
+                    Opcode::OP_PUSHBYTES(n) => {
+                        exp_bytes = Some(n.into());
+                    }
+                    Opcode::OP_DUP => {
+                        let hd = stack.0[0].clone();
+                        stack.0.push(hd);
+                    }
+                    Opcode::OP_HASH160 => {
+                        let hd = stack.0.pop().unwrap();
+                        let res = Sha256::digest(&hd);
+                        let mut hasher = Ripemd160::new();
+                        hasher.update(res);
+                        let result = hasher.finalize();
+                        stack.0.push(result.to_vec());
+                    }
+                    Opcode::OP_EQUALVERIFY => {
+                        let lhs = stack.0.pop().unwrap();
+                        println!("Lhs: {:?}", lhs);
+                        let rhs = stack.0.pop().unwrap();
+                        println!("Rhs: {:?}", rhs);
+                        let is_equal = lhs.len() == rhs.len()
+                            && lhs.iter().zip(rhs.iter()).all(|(x, y)| x == y);
+                        println!("Is_equal: {is_equal}");
+                        stack.0.push(vec![is_equal as u8]);
+                        let res = stack.0.pop().unwrap();
+                        let is_true = res.len() == 1 && res[0] == 1;
+                        if !is_true {
+                            return false;
+                        }
+                    }
+                    _ => unimplemented!("The opcode {opcode} is not implemented"),
+                },
+            }
+        }
+        stack.0.is_empty()
     }
 }
 
@@ -1172,5 +1237,18 @@ mod tests {
             script.to_string(),
             "OP_PUSHBYTES4 0xffff001d OP_PUSHBYTES1 0x04 OP_PUSHBYTES69 0x5468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73"
         );
+    }
+
+    #[test]
+    pub fn test_interpreter_p2pkh() {
+        let asm_hex = "76a91455ae51684c43435da751ac8d2173b2652eb6410588ac";
+        let script = Script::of_bytes(hex::decode(asm_hex).unwrap());
+        let addr: Vec<u8> = bs58::decode("18p3G8gQ3oKy4U9EqnWs7UZswdqAMhE3r8")
+            .into_vec()
+            .unwrap();
+        let mut initial_stack = Stack::new();
+        initial_stack.push(addr);
+        println!("Script is {script}");
+        assert!(script.interpret(initial_stack));
     }
 }
