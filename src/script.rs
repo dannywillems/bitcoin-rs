@@ -772,6 +772,13 @@ impl Script {
         x[8..].to_vec()
     }
 
+    pub fn of_bytes(bytes: Vec<u8>) -> Self {
+        let length: u64 = bytes.len().try_into().unwrap();
+        let mut bytes_with_length: Vec<u8> = length.to_le_bytes().to_vec();
+        bytes_with_length.extend(bytes);
+        bincode::deserialize(&bytes_with_length).unwrap()
+    }
+
     pub fn new(instr: Vec<Term>) -> Self {
         Self(instr)
     }
@@ -862,6 +869,24 @@ mod tests {
             let exp_output = hex::decode(exp_output).unwrap();
             assert_eq!(exp_output, script.to_bytes());
         }
+    }
+
+    #[test]
+    pub fn test_script_of_bytes() {
+        let asm_hex = "76a91455ae51684c43435da751ac8d2173b2652eb6410588ac";
+        let script = hex::decode(asm_hex).unwrap();
+        let exp_script = Script::new(vec![
+            Term::Instruction(Opcode::OP_DUP),
+            Term::Instruction(Opcode::OP_HASH160),
+            Term::Instruction(Opcode::OP_PUSHBYTES(20)),
+            Term::Data(vec![
+                85, 174, 81, 104, 76, 67, 67, 93, 167, 81, 172, 141, 33, 115, 178, 101, 46, 182,
+                65, 5,
+            ]),
+            Term::Instruction(Opcode::OP_EQUALVERIFY),
+            Term::Instruction(Opcode::OP_CHECKSIG),
+        ]);
+        assert_eq!(Script::of_bytes(script), exp_script)
     }
 
     #[test]
