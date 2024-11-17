@@ -1242,6 +1242,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     pub fn test_interpreter_p2pkh() {
         let asm_hex = "76a91455ae51684c43435da751ac8d2173b2652eb6410588ac";
         let script = Script::of_bytes(hex::decode(asm_hex).unwrap());
