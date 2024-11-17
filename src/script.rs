@@ -22,6 +22,25 @@ impl Stack {
     pub fn push(&mut self, v: Vec<u8>) {
         self.0.push(v)
     }
+
+    pub fn pop(&mut self) -> Vec<u8> {
+        self.0.pop().unwrap()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn debug(&self) {
+        if self.is_empty() {
+            println!("Stack is empty");
+            return;
+        }
+        for elem in self.0.iter().rev() {
+            let x = hex::encode(elem);
+            println!("{}", x);
+        }
+    }
 }
 
 impl Default for Stack {
