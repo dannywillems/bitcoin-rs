@@ -487,6 +487,7 @@ impl std::fmt::Display for Opcode {
         }
     }
 }
+
 impl From<u8> for Opcode {
     fn from(val: u8) -> Opcode {
         match val {
@@ -841,6 +842,7 @@ impl std::fmt::Display for Script {
         write!(f, "{}", s.join(" "))
     }
 }
+
 impl Serialize for Script {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
