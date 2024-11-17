@@ -32,138 +32,302 @@ impl Default for Stack {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Opcode {
     // push value
+    /// An empty array of bytes is pushed onto the stack. (This is not a no-op:
+    /// an item is added to the stack.)
     OP_0,
+    /// An empty array of bytes is pushed onto the stack. (This is not a no-op:
+    /// an item is added to the stack.)
     OP_FALSE,
+    /// The next opcode bytes is data to be pushed onto the stack
     OP_PUSHBYTES(u8),
+    /// The next byte contains the number of bytes to be pushed onto the stack.
     OP_PUSHDATA1(u8),
+    /// The next two bytes contain the number of bytes to be pushed onto the
+    /// stack in little endian order.
     OP_PUSHDATA2([u8; 2]),
+    /// The next four bytes contain the number of bytes to be pushed onto the
+    /// stack in little endian order.
     OP_PUSHDATA4([u8; 4]),
+    /// The number -1 is pushed onto the stack.
     OP_1NEGATE,
+    /// Transaction is invalid unless occuring in an unexecuted OP_IF branch
     OP_RESERVED,
+    /// The number 1 is pushed onto the stack.
     OP_1,
+    /// The number 1 is pushed onto the stack.
     OP_TRUE,
+    /// The number 2 is pushed onto the stack.
     OP_2,
+    /// The number 3 is pushed onto the stack.
     OP_3,
+    /// The number 4 is pushed onto the stack.
     OP_4,
+    /// The number 5 is pushed onto the stack.
     OP_5,
+    /// The number 6 is pushed onto the stack.
     OP_6,
+    /// The number 7 is pushed onto the stack.
     OP_7,
+    /// The number 8 is pushed onto the stack.
     OP_8,
+    /// The number 9 is pushed onto the stack.
     OP_9,
+    /// The number 10 is pushed onto the stack.
     OP_10,
+    /// The number 11 is pushed onto the stack.
     OP_11,
+    /// The number 12 is pushed onto the stack.
     OP_12,
+    /// The number 13 is pushed onto the stack.
     OP_13,
+    /// The number 14 is pushed onto the stack.
     OP_14,
+    /// The number 15 is pushed onto the stack.
     OP_15,
+    /// The number 16 is pushed onto the stack.
     OP_16,
 
     // control
+    /// Does nothing
     OP_NOP,
+    /// Transaction is invalid unless occuring in an unexecuted OP_IF branch
     OP_VER,
+    /// If the top stack value is not False, the statements are executed. The
+    /// top stack value is removed.
     OP_IF,
+    /// If the top stack value is False, the statements are executed. The top
+    /// stack value is removed.
     OP_NOTIF,
+    /// Transaction is invalid even when occuring in an unexecuted OP_IF branch
     OP_VERIF,
+    /// Transaction is invalid even when occuring in an unexecuted OP_IF branch
     OP_VERNOTIF,
+    /// If the preceding OP_IF or OP_NOTIF or OP_ELSE was not executed then
+    /// these statements are and if the preceding OP_IF or OP_NOTIF or OP_ELSE
+    /// was executed then these statements are not.
     OP_ELSE,
+    /// Ends an if/else block. All blocks must end, or the transaction is
+    /// invalid. An OP_ENDIF without OP_IF earlier is also invalid.
     OP_ENDIF,
+    /// Marks transaction as invalid if top stack value is not true. The top
+    /// stack value is removed.
     OP_VERIFY,
+    /// Marks transaction as invalid. Since bitcoin 0.9, a standard way of
+    /// attaching extra data to transactions is to add a zero-value output with
+    /// a scriptPubKey consisting of OP_RETURN followed by data. Such outputs
+    /// are provably unspendable and specially discarded from storage in the
+    /// UTXO set, reducing their cost to the network. Since 0.12, standard relay
+    /// rules allow a single output with OP_RETURN, that contains any sequence
+    /// of push statements (or `OP_RESERVED[1]`) after the OP_RETURN provided the
+    /// total scriptPubKey length is at most 83 bytes.
     OP_RETURN,
 
     // stack ops
+    /// Puts the input onto the top of the alt stack. Removes it from the main
+    /// stack.
     OP_TOALTSTACK,
+    /// Puts the input onto the top of the main stack. Removes it from the alt
+    /// stack.
     OP_FROMALTSTACK,
+    /// Removes the top two stack items.
     OP_2DROP,
+    /// Duplicates the top two stack items.
     OP_2DUP,
+    /// Duplicates the top three stack items.
     OP_3DUP,
+    /// Copies the pair of items two spaces back in the stack to the front.
     OP_2OVER,
+    /// The fifth and sixth items back are moved to the top of the stack.
     OP_2ROT,
+    /// Swaps the top two pairs of items.
     OP_2SWAP,
+    /// If the top stack value is not 0, duplicate it.
     OP_IFDUP,
+    /// Puts the number of stack items onto the stack.
     OP_DEPTH,
+    /// Removes the top stack item.
     OP_DROP,
+    /// Duplicates the top stack item.
     OP_DUP,
+    /// Removes the second-to-top stack item.
     OP_NIP,
+    /// Copies the second-to-top stack item to the top.
     OP_OVER,
+    /// The item n back in the stack is copied to the top.
     OP_PICK,
+    /// The item n back in the stack is moved to the top.
     OP_ROLL,
+    /// The 3rd item down the stack is moved to the top.
     OP_ROT,
+    /// The top two items on the stack are swapped.
     OP_SWAP,
+    /// The item at the top of the stack is copied and inserted before the
+    /// second-to-top item.
     OP_TUCK,
 
     // splice ops
+    /// Concatenates two strings. disabled.
     OP_CAT,
+    /// Returns a section of a string. disabled.
     OP_SUBSTR,
+    /// Keeps only characters left of the specified point in a string. disabled.
     OP_LEFT,
+    /// Keeps only characters right of the specified point in a string.
+    /// disabled.
     OP_RIGHT,
+    /// Pushes the string length of the top element of the stack (without
+    /// popping it).
     OP_SIZE,
 
     // bit logic
+    /// Flips all of the bits in the input. disabled.
     OP_INVERT,
+    /// Boolean and between each bit in the inputs. disabled.
     OP_AND,
+    /// Boolean or between each bit in the inputs. disabled.
     OP_OR,
+    /// Boolean exclusive or between each bit in the inputs. disabled.
     OP_XOR,
+    /// Returns 1 if the inputs are exactly equal, 0 otherwise.
     OP_EQUAL,
+    /// Same as OP_EQUAL, but runs OP_VERIFY afterward.
     OP_EQUALVERIFY,
+    /// Transaction is invalid unless occuring in an unexecuted OP_IF branch
     OP_RESERVED1,
+    /// Transaction is invalid unless occuring in an unexecuted OP_IF branch
     OP_RESERVED2,
 
     // numeric
+    /// 1 is added to the input.
     OP_1ADD,
+    /// 1 is subtracted from the input.
     OP_1SUB,
+    /// The input is multiplied by 2. Currently disabled.
     OP_2MUL,
+    /// The input is divided by 2. Currently disabled.
     OP_2DIV,
+    /// The sign of the input is flipped.
     OP_NEGATE,
+    /// The input is made positive.
     OP_ABS,
+    /// If the input is 0 or 1, it is flipped. Otherwise the output will be 0.
     OP_NOT,
+    /// Returns 0 if the input is 0. 1 otherwise.
     OP_0NOTEQUAL,
 
+    /// a is added to b.
     OP_ADD,
+    /// b is subtracted from a.
     OP_SUB,
+    /// a is multiplied by b.
     OP_MUL,
+    /// a is divided by b.
     OP_DIV,
+    /// Returns the remainder after dividing a by b.
     OP_MOD,
+    /// Shifts a left b bits, preserving sign.
     OP_LSHIFT,
+    /// Shifts a right b bits, preserving sign.
     OP_RSHIFT,
 
+    /// If both a and b are not 0, the output is 1. Otherwise 0.
     OP_BOOLAND,
+    /// If a or b is not 0, the output is 1. Otherwise 0.
     OP_BOOLOR,
+    /// Returns 1 if the numbers are equal, 0 otherwise.
     OP_NUMEQUAL,
+    /// Same as OP_NUMEQUAL, but runs OP_VERIFY afterward.
     OP_NUMEQUALVERIFY,
+    /// Returns 1 if the numbers are not equal, 0 otherwise.
     OP_NUMNOTEQUAL,
+    /// Returns 1 if a is less than b, 0 otherwise.
     OP_LESSTHAN,
+    /// Returns 1 if a is greater than b, 0 otherwise.
     OP_GREATERTHAN,
+    /// Returns 1 if a is less than or equal to b, 0 otherwise.
     OP_LESSTHANOREQUAL,
+    /// Returns 1 if a is greater than or equal to b, 0 otherwise.
     OP_GREATERTHANOREQUAL,
+    /// Returns the smaller of a and b.
     OP_MIN,
+    /// Returns the larger of a and b.
     OP_MAX,
-
+    /// Returns 1 if x is within the specified range (left-inclusive), 0 otherwise.
     OP_WITHIN,
 
     // crypto
+    /// The input is hashed using RIPEMD-160.
     OP_RIPEMD160,
+    /// The input is hashed using SHA-1.
     OP_SHA1,
+    /// The input is hashed using SHA-256.
     OP_SHA256,
+    /// The input is hashed twice: first with SHA-256 and then with RIPEMD-160
     OP_HASH160,
+    /// The input is hashed two times with SHA-256
     OP_HASH256,
+    /// All of the signature checking words will only match signatures to the
+    /// data after the most recently-executed OP_CODESEPARATOR
     OP_CODESEPARATOR,
+    /// The entire transaction's outputs, inputs, and script (from the most
+    /// recently-executed OP_CODESEPARATOR to the end) are hashed. The signature
+    /// used by OP_CHECKSIG must be a valid signature for this hash and public key.
+    /// If it is, 1 is returned, 0 otherwise
     OP_CHECKSIG,
+    /// Same as OP_CHECKSIG, but OP_VERIFY is executed afterward
     OP_CHECKSIGVERIFY,
+    /// Compares the first signature against each public key until it finds an
+    /// ECDSA match. Starting with the subsequent public key, it compares the
+    /// second signature against each remaining public key until it finds an
+    /// ECDSA match. The process is repeated until all signatures have been
+    /// checked or not enough public keys remain to produce a successful result.
+    /// All signatures need to match a public key. Because public keys are not
+    /// checked again if they fail any signature comparison, signatures must be
+    /// placed in the scriptSig using the same order as their corresponding
+    /// public keys were placed in the scriptPubKey or redeemScript. If all
+    /// signatures are valid, 1 is returned, 0 otherwise. Due to a bug, one
+    /// extra unused value is removed from the stack.
     OP_CHECKMULTISIG,
+    /// Same as OP_CHECKMULTISIG, but OP_VERIFY is executed afterward.
     OP_CHECKMULTISIGVERIFY,
 
     // expansion
+    /// The word is ignored. Does not mark transaction as invalid.
     OP_NOP1,
+    /// Marks transaction as invalid if the top stack item is greater than the
+    /// transaction's nLockTime field, otherwise script evaluation continues as
+    /// though an OP_NOP was executed. Transaction is also invalid if 1. the
+    /// stack is empty; or 2. the top stack item is negative; or 3. the top
+    /// stack item is greater than or equal to 500000000 while the transaction's
+    /// nLockTime field is less than 500000000, or vice versa; or 4. the input's
+    /// nSequence field is equal to 0xffffffff. The precise semantics are
+    /// described in [BIP
+    /// 0065](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki).
     OP_CHECKLOCKTIMEVERIFY,
+    /// The word is ignored. Does not mark transaction as invalid.
     OP_NOP2,
+    /// Marks transaction as invalid if the relative lock time of the input
+    /// (enforced by [BIP
+    /// 0068](https://github.com/bitcoin/bips/blob/master/bip-0068.mediawiki)
+    /// with nSequence) is not equal to or longer than the
+    /// value of the top stack item. The precise semantics are described in [BIP
+    /// 0112](https://github.com/bitcoin/bips/blob/master/bip-0112.mediawiki).
     OP_CHECKSEQUENCEVERIFY,
+    /// The word is ignored. Does not mark transaction as invalid.
     OP_NOP3,
+    /// The word is ignored. Does not mark transaction as invalid.
     OP_NOP4,
+    /// The word is ignored. Does not mark transaction as invalid.
     OP_NOP5,
+    /// The word is ignored. Does not mark transaction as invalid.
     OP_NOP6,
+    /// The word is ignored. Does not mark transaction as invalid.
     OP_NOP7,
+    /// The word is ignored. Does not mark transaction as invalid.
     OP_NOP8,
+    /// The word is ignored. Does not mark transaction as invalid.
     OP_NOP9,
+    /// The word is ignored. Does not mark transaction as invalid.
     OP_NOP10,
 
     // Opcode added by BIP 342 (Tapscript)
