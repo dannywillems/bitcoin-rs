@@ -8,11 +8,16 @@ use serde::Deserializer;
 use serde::Serialize;
 use serde::Serializer;
 
+#[derive(Clone)]
 pub struct Stack(Vec<Vec<u8>>);
 
 impl Stack {
     pub fn new() -> Self {
         Self(vec![])
+    }
+
+    pub fn push(&mut self, v: Vec<u8>) {
+        self.0.push(v)
     }
 }
 
