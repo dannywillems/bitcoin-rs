@@ -22,3 +22,5 @@ jobs:
       run: make test-doc
     - name: Clippy
       run: make lint
+    - name: Generate doc
+      run: make generate-doc
