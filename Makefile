@@ -40,3 +40,5 @@ generate-doc:
 		@echo ""
 		@echo "The documentation is available at: ./target/doc"
 		@echo ""
+
+.PHONY: all clean build release test-doc test-all format lint setup-toolchain-riscv32i build-riscv32i generate-doc
