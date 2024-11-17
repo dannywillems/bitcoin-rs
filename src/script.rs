@@ -726,23 +726,37 @@ impl<'de> Deserialize<'de> for Script {
                 let local_data = data[i..i + opcode as usize].to_vec();
                 i += opcode as usize;
                 terms.push(Term::Data(local_data));
-            } else if opcode == 76 {
+            } else if opcode == 0x4c {
                 let nb_bytes = data[i + 1];
                 assert!(nb_bytes >= 76);
                 let local_data = data[i + 2..i + 2 + nb_bytes as usize].to_vec();
                 i += 1 + 1 + nb_bytes as usize;
                 terms.push(Term::Instruction(Opcode::OP_PUSHDATA1(nb_bytes)));
                 terms.push(Term::Data(local_data));
-            } else if opcode == 77 {
+            } else if opcode == 0x4d {
                 let b1 = data[i + 1];
                 let b2 = data[i + 2];
-                let nb_bytes = b1 << 16 + b2;
+                let mut nb_bytes: u64 = b1.into();
+                nb_bytes = (nb_bytes << 8) + (b2 as u64);
+                nb_bytes = nb_bytes << 8;
                 let local_data = data[i + 3..i + 3 + nb_bytes as usize].to_vec();
                 i += 2 + 1 + nb_bytes as usize;
                 terms.push(Term::Instruction(Opcode::OP_PUSHDATA2([b1, b2])));
                 terms.push(Term::Data(local_data));
-            } else if opcode == 78 {
-                unimplemented!("TODO")
+            } else if opcode == 0x4e {
+                let b1 = data[i + 1];
+                let b2 = data[i + 2];
+                let b3 = data[i + 3];
+                let b4 = data[i + 4];
+                let mut nb_bytes: u64 = b1.into();
+                nb_bytes = (nb_bytes << 8) + (b2 as u64);
+                nb_bytes = (nb_bytes << 8) + (b3 as u64);
+                nb_bytes = (nb_bytes << 8) + (b4 as u64);
+                nb_bytes = nb_bytes << 8;
+                let local_data = data[i + 5..i + 5 + nb_bytes as usize].to_vec();
+                i += 5 + 1 + nb_bytes as usize;
+                terms.push(Term::Instruction(Opcode::OP_PUSHDATA4([b1, b2, b3, b4])));
+                terms.push(Term::Data(local_data));
             } else {
                 terms.push(Term::Instruction(Opcode::from(opcode)));
                 i += 1;
@@ -877,6 +891,17 @@ mod tests {
     }
 
     #[test]
+    pub fn test_decode_pushdata4() {
+        let data = "ab".repeat(1 << 16);
+        let script = Script(vec![
+            Term::Instruction(Opcode::OP_PUSHDATA4([0x00, 0x00, 0x01, 0x00])),
+            Term::Data(hex::decode(data).unwrap()),
+        ]);
+        script.to_bytes();
+        assert_eq!(script.to_bytes().len(), 5 + (1 << 16))
+    }
+
+    #[test]
     pub fn test_serialize_and_deserialize() {
         let data = "5468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73";
         let data = hex::decode(data).unwrap();
@@ -887,6 +912,47 @@ mod tests {
             Term::Data(hex::decode("04").unwrap()),
             Term::Instruction(Opcode::OP_PUSHBYTES(69)),
             Term::Data(data),
+        ]);
+        // Checking serialize/deserialize works together
+        let res: Vec<u8> = serialize(&script).unwrap();
+        let script2: Script = deserialize(&res).unwrap();
+        assert_eq!(script, script2);
+    }
+
+    #[test]
+    pub fn test_serialize_and_deserialize_pushdata1() {
+        let data = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let data = hex::decode(data).unwrap();
+        let script = Script(vec![
+            Term::Instruction(Opcode::OP_PUSHDATA1(0x4c)),
+            Term::Data(data),
+        ]);
+        // Checking serialize/deserialize works together
+        let res: Vec<u8> = serialize(&script).unwrap();
+        let script2: Script = deserialize(&res).unwrap();
+        assert_eq!(script, script2);
+    }
+
+    #[test]
+    pub fn test_serialize_and_deserialize_pushdata2() {
+        let data = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let data = hex::decode(data).unwrap();
+        let script = Script(vec![
+            Term::Instruction(Opcode::OP_PUSHDATA2([0x00, 0x01])),
+            Term::Data(data),
+        ]);
+        // Checking serialize/deserialize works together
+        let res: Vec<u8> = serialize(&script).unwrap();
+        let script2: Script = deserialize(&res).unwrap();
+        assert_eq!(script, script2);
+    }
+
+    #[test]
+    pub fn test_serialize_and_deserialize_pushdata4() {
+        let data = "ab".repeat(1 << 16);
+        let script = Script(vec![
+            Term::Instruction(Opcode::OP_PUSHDATA4([0x00, 0x00, 0x01, 0x00])),
+            Term::Data(hex::decode(data).unwrap()),
         ]);
         // Checking serialize/deserialize works together
         let res: Vec<u8> = serialize(&script).unwrap();
