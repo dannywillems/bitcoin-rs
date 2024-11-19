@@ -976,12 +976,14 @@ impl Script {
         Self(instr)
     }
 
-    pub fn interpret(&self, stack: Stack) -> bool {
-        let mut stack = stack.clone();
+    pub fn interpret(&self) -> bool {
+        let mut stack = Stack::new();
         let mut exp_bytes: Option<usize> = None;
         // FIXME: remove clone
         for c in self.0.clone() {
             println!("Interpreting {:?}", c);
+            println!("------STACK-------");
+            stack.debug();
             match c {
                 Term::Data(v) => {
                     if exp_bytes.is_none() {
@@ -994,47 +996,53 @@ impl Script {
                             // Wrong data length
                             return false;
                         } else {
-                            stack.0.push(data)
+                            stack.push(data)
                         }
                     }
                 }
                 Term::Instruction(opcode) => match opcode {
-                    Opcode::OP_0 => stack.0.push(vec![0]),
-                    Opcode::OP_FALSE => stack.0.push(vec![0]),
+                    Opcode::OP_0 => stack.push(vec![0]),
+                    Opcode::OP_FALSE => stack.push(vec![0]),
                     Opcode::OP_PUSHBYTES(n) => {
                         exp_bytes = Some(n.into());
                     }
                     Opcode::OP_DUP => {
-                        let hd = stack.0[0].clone();
-                        stack.0.push(hd);
-                    }
-                    Opcode::OP_HASH160 => {
-                        let hd = stack.0.pop().unwrap();
-                        let res = Sha256::digest(&hd);
-                        let mut hasher = Ripemd160::new();
-                        hasher.update(res);
-                        let result = hasher.finalize();
-                        stack.0.push(result.to_vec());
+                        let hd = stack.pop();
+                        stack.push(hd.clone());
+                        stack.push(hd);
                     }
                     Opcode::OP_EQUALVERIFY => {
-                        let lhs = stack.0.pop().unwrap();
-                        println!("Lhs: {:?}", lhs);
-                        let rhs = stack.0.pop().unwrap();
-                        println!("Rhs: {:?}", rhs);
+                        let lhs = stack.pop();
+                        // println!("Lhs: {:?}", lhs);
+                        let rhs = stack.pop();
+                        // println!("Rhs: {:?}", rhs);
                         let is_equal = lhs.len() == rhs.len()
                             && lhs.iter().zip(rhs.iter()).all(|(x, y)| x == y);
-                        println!("Is_equal: {is_equal}");
-                        stack.0.push(vec![is_equal as u8]);
-                        let res = stack.0.pop().unwrap();
+                        // println!("Is_equal: {is_equal}");
+                        stack.push(vec![is_equal as u8]);
+                        let res = stack.pop();
                         let is_true = res.len() == 1 && res[0] == 1;
                         if !is_true {
                             return false;
                         }
                     }
+                    Opcode::OP_HASH160 => {
+                        let hd = stack.pop();
+                        let res = Sha256::digest(&hd);
+                        let mut hasher = Ripemd160::new();
+                        hasher.update(res);
+                        let result = hasher.finalize();
+                        stack.push(result.to_vec());
+                    }
+                    Opcode::OP_CHECKSIG => {
+                        let pubkey = stack.pop();
+                        let signature = stack.pop();
+                    }
                     _ => unimplemented!("The opcode {opcode} is not implemented"),
                 },
             }
         }
+        println!("Stack at the end: {:?}", stack.0);
         stack.0.is_empty()
     }
 }
@@ -1261,16 +1269,16 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     pub fn test_interpreter_p2pkh() {
-        let asm_hex = "76a91455ae51684c43435da751ac8d2173b2652eb6410588ac";
-        let script = Script::of_bytes(hex::decode(asm_hex).unwrap());
-        let addr: Vec<u8> = bs58::decode("18p3G8gQ3oKy4U9EqnWs7UZswdqAMhE3r8")
-            .into_vec()
-            .unwrap();
-        let mut initial_stack = Stack::new();
-        initial_stack.push(addr);
+        let tx = "01000000019c2e0f24a03e72002a96acedb12a632e72b6b74c05dc3ceab1fe78237f886c48010000006a47304402203da9d487be5302a6d69e02a861acff1da472885e43d7528ed9b1b537a8e2cac9022002d1bca03a1e9715a99971bafe3b1852b7a4f0168281cbd27a220380a01b3307012102c9950c622494c2e9ff5a003e33b690fe4832477d32c2d256c67eab8bf613b34effffffff02b6f50500000000001976a914bdf63990d6dc33d705b756e13dd135466c06b3b588ac845e0201000000001976a9145fb0e9755a3424efd2ba0587d20b1e98ee29814a88ac00000000";
+        let sig = "47304402203da9d487be5302a6d69e02a861acff1da472885e43d7528ed9b1b537a8e2cac9022002d1bca03a1e9715a99971bafe3b1852b7a4f0168281cbd27a220380a01b330701";
+        let redeem_script = "2102c9950c622494c2e9ff5a003e33b690fe4832477d32c2d256c67eab8bf613b34e";
+        let asm_hex = "76a9145fb0e9755a3424efd2ba0587d20b1e98ee29814a88ac";
+        let mut res = sig.to_owned();
+        res.push_str(redeem_script);
+        res.push_str(asm_hex);
+        let script = Script::of_bytes(hex::decode(res).unwrap());
         println!("Script is {script}");
-        assert!(script.interpret(initial_stack));
+        assert!(script.interpret());
     }
 }

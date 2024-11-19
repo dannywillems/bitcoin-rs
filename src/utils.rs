@@ -15,18 +15,44 @@ pub enum CompactBytes {
     B8([u8; 8]),
 }
 
+impl CompactBytes {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        match self {
+            CompactBytes::B1(b) => vec![*b],
+            CompactBytes::B2(b) => vec![0xFD, b[0], b[1]],
+            CompactBytes::B4(b) => vec![0xFE, b[0], b[1], b[2], b[3]],
+            CompactBytes::B8(b) => vec![0xFF, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]],
+        }
+    }
+
+    pub fn of_bytes(bytes: Vec<u8>) -> CompactBytes {
+        match bytes.len() {
+            1 => CompactBytes::B1(bytes[0]),
+            3 => {
+                assert_eq!(bytes[0], 0xFD, "The leading byte must be 0xFD");
+                CompactBytes::B2([bytes[1], bytes[2]])
+            }
+            5 => {
+                assert_eq!(bytes[0], 0xFE, "The leading byte must be 0xFE");
+                CompactBytes::B4([bytes[1], bytes[2], bytes[3], bytes[4]])
+            }
+            9 => {
+                assert_eq!(bytes[0], 0xFF, "The leading byte must be 0xFF");
+                CompactBytes::B8([
+                    bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7], bytes[8],
+                ])
+            }
+            _ => panic!("Unsupported number of bytes"),
+        }
+    }
+}
 impl Serialize for CompactBytes {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let res = match self {
-            CompactBytes::B1(b) => vec![*b],
-            CompactBytes::B2(b) => vec![0xFD, b[0], b[1]],
-            CompactBytes::B4(b) => vec![0xFE, b[0], b[1], b[2], b[3]],
-            CompactBytes::B8(b) => vec![0xFF, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]],
-        };
-        serializer.serialize_bytes(&res)
+        let res = self.to_bytes();
+        res.serialize(serializer)
     }
 }
 
@@ -37,22 +63,7 @@ impl<'de> Deserialize<'de> for CompactBytes {
         D: Deserializer<'de>,
     {
         let s = Vec::<u8>::deserialize(deserializer)?;
-        if s.len() == 1 {
-            Ok(CompactBytes::B1(s[0]))
-        } else if s.len() == 3 {
-            assert_eq!(s[0], 0xFD, "The leading byte must be 0xFD");
-            Ok(CompactBytes::B2([s[1], s[2]]))
-        } else if s.len() == 5 {
-            assert_eq!(s[0], 0xFE, "The leading byte must be 0xFE");
-            Ok(CompactBytes::B4([s[1], s[2], s[3], s[4]]))
-        } else if s.len() == 9 {
-            assert_eq!(s[0], 0xFF, "The leading byte must be 0xFF");
-            Ok(CompactBytes::B8([
-                s[1], s[2], s[3], s[4], s[5], s[6], s[7], s[8],
-            ]))
-        } else {
-            panic!("Unsupported number of bytes")
-        }
+        Ok(Self::of_bytes(s))
     }
 }
 
