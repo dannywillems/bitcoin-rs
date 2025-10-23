@@ -105,6 +105,11 @@ compatibility:
 - **Opcode documentation**: Each opcode in the enum definition must document:
   - Instruction side effects (stack changes, state modifications)
   - Semantic behavior (what the opcode does and when)
+- **Bitcoin Core reference**: When implementing opcodes, always add a comment
+  with a link to the actual Bitcoin script opcode implementation using commit
+  cac846c2fbf6fc69bfc288fd387aa3f68d84d584 from the reference implementation.
+  Format:
+  `// Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L<line>`
 
 ## Missing Opcode Implementations
 
