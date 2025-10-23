@@ -1035,8 +1035,8 @@ impl Script {
                         stack.push(result.to_vec());
                     }
                     Opcode::OP_CHECKSIG => {
-                        let pubkey = stack.pop();
-                        let signature = stack.pop();
+                        let _pubkey = stack.pop();
+                        let _signature = stack.pop();
                     }
                     _ => unimplemented!("The opcode {opcode} is not implemented"),
                 },
@@ -1270,7 +1270,7 @@ mod tests {
 
     #[test]
     pub fn test_interpreter_p2pkh() {
-        let tx = "01000000019c2e0f24a03e72002a96acedb12a632e72b6b74c05dc3ceab1fe78237f886c48010000006a47304402203da9d487be5302a6d69e02a861acff1da472885e43d7528ed9b1b537a8e2cac9022002d1bca03a1e9715a99971bafe3b1852b7a4f0168281cbd27a220380a01b3307012102c9950c622494c2e9ff5a003e33b690fe4832477d32c2d256c67eab8bf613b34effffffff02b6f50500000000001976a914bdf63990d6dc33d705b756e13dd135466c06b3b588ac845e0201000000001976a9145fb0e9755a3424efd2ba0587d20b1e98ee29814a88ac00000000";
+        let _tx = "01000000019c2e0f24a03e72002a96acedb12a632e72b6b74c05dc3ceab1fe78237f886c48010000006a47304402203da9d487be5302a6d69e02a861acff1da472885e43d7528ed9b1b537a8e2cac9022002d1bca03a1e9715a99971bafe3b1852b7a4f0168281cbd27a220380a01b3307012102c9950c622494c2e9ff5a003e33b690fe4832477d32c2d256c67eab8bf613b34effffffff02b6f50500000000001976a914bdf63990d6dc33d705b756e13dd135466c06b3b588ac845e0201000000001976a9145fb0e9755a3424efd2ba0587d20b1e98ee29814a88ac00000000";
         let sig = "47304402203da9d487be5302a6d69e02a861acff1da472885e43d7528ed9b1b537a8e2cac9022002d1bca03a1e9715a99971bafe3b1852b7a4f0168281cbd27a220380a01b330701";
         let redeem_script = "2102c9950c622494c2e9ff5a003e33b690fe4832477d32c2d256c67eab8bf613b34e";
         let asm_hex = "76a9145fb0e9755a3424efd2ba0587d20b1e98ee29814a88ac";
