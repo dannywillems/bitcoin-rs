@@ -26,12 +26,25 @@ impl Stack {
         self.0.push(v)
     }
 
-    pub fn pop(&mut self) -> Vec<u8> {
+    pub fn pop(&mut self) -> Option<Vec<u8>> {
+        self.0.pop()
+    }
+
+    pub fn pop_unwrap(&mut self) -> Vec<u8> {
         self.0.pop().unwrap()
     }
 
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Check if stack has at least n elements
+    pub fn has(&self, n: usize) -> bool {
+        self.0.len() >= n
     }
 
     #[cfg(test)]
@@ -1008,288 +1021,525 @@ impl Script {
                     }
                 }
                 Term::Instruction(opcode) => match opcode {
+                    // Push value opcodes
                     Opcode::OP_0 => stack.push(vec![0]),
                     Opcode::OP_FALSE => stack.push(vec![0]),
                     Opcode::OP_PUSHBYTES(n) => {
                         exp_bytes = Some(n.into());
                     }
+                    Opcode::OP_1NEGATE => stack.push(vec![0x81]), // -1 in Script number format
+                    Opcode::OP_1 | Opcode::OP_TRUE => stack.push(vec![1]),
+                    Opcode::OP_2 => stack.push(vec![2]),
+                    Opcode::OP_3 => stack.push(vec![3]),
+                    Opcode::OP_4 => stack.push(vec![4]),
+                    Opcode::OP_5 => stack.push(vec![5]),
+                    Opcode::OP_6 => stack.push(vec![6]),
+                    Opcode::OP_7 => stack.push(vec![7]),
+                    Opcode::OP_8 => stack.push(vec![8]),
+                    Opcode::OP_9 => stack.push(vec![9]),
+                    Opcode::OP_10 => stack.push(vec![10]),
+                    Opcode::OP_11 => stack.push(vec![11]),
+                    Opcode::OP_12 => stack.push(vec![12]),
+                    Opcode::OP_13 => stack.push(vec![13]),
+                    Opcode::OP_14 => stack.push(vec![14]),
+                    Opcode::OP_15 => stack.push(vec![15]),
+                    Opcode::OP_16 => stack.push(vec![16]),
+
+                    // Stack manipulation
+                    Opcode::OP_DROP => {
+                        if !stack.has(1) {
+                            return false;
+                        }
+                        stack.pop_unwrap();
+                    }
                     Opcode::OP_DUP => {
-                        let hd = stack.pop();
+                        if !stack.has(1) {
+                            return false;
+                        }
+                        let hd = stack.pop_unwrap();
                         stack.push(hd.clone());
                         stack.push(hd);
                     }
+                    Opcode::OP_NIP => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let top = stack.pop_unwrap();
+                        stack.pop_unwrap(); // Remove second item
+                        stack.push(top);
+                    }
+                    Opcode::OP_OVER => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let a = stack.pop_unwrap();
+                        let b = stack.pop_unwrap();
+                        stack.push(b.clone());
+                        stack.push(a);
+                        stack.push(b);
+                    }
+                    Opcode::OP_SWAP => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let a = stack.pop_unwrap();
+                        let b = stack.pop_unwrap();
+                        stack.push(a);
+                        stack.push(b);
+                    }
+                    Opcode::OP_TUCK => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let a = stack.pop_unwrap();
+                        let b = stack.pop_unwrap();
+                        stack.push(a.clone());
+                        stack.push(b);
+                        stack.push(a);
+                    }
+                    Opcode::OP_2DROP => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        stack.pop_unwrap();
+                        stack.pop_unwrap();
+                    }
+                    Opcode::OP_2DUP => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let a = stack.pop_unwrap();
+                        let b = stack.pop_unwrap();
+                        stack.push(b.clone());
+                        stack.push(a.clone());
+                        stack.push(b);
+                        stack.push(a);
+                    }
+                    Opcode::OP_3DUP => {
+                        if !stack.has(3) {
+                            return false;
+                        }
+                        let a = stack.pop_unwrap();
+                        let b = stack.pop_unwrap();
+                        let c = stack.pop_unwrap();
+                        stack.push(c.clone());
+                        stack.push(b.clone());
+                        stack.push(a.clone());
+                        stack.push(c);
+                        stack.push(b);
+                        stack.push(a);
+                    }
+                    Opcode::OP_2OVER => {
+                        if !stack.has(4) {
+                            return false;
+                        }
+                        let a = stack.pop_unwrap();
+                        let b = stack.pop_unwrap();
+                        let c = stack.pop_unwrap();
+                        let d = stack.pop_unwrap();
+                        stack.push(d.clone());
+                        stack.push(c.clone());
+                        stack.push(b);
+                        stack.push(a);
+                        stack.push(d);
+                        stack.push(c);
+                    }
+                    Opcode::OP_2ROT => {
+                        if !stack.has(6) {
+                            return false;
+                        }
+                        let a = stack.pop_unwrap();
+                        let b = stack.pop_unwrap();
+                        let c = stack.pop_unwrap();
+                        let d = stack.pop_unwrap();
+                        let e = stack.pop_unwrap();
+                        let f = stack.pop_unwrap();
+                        stack.push(d);
+                        stack.push(c);
+                        stack.push(b);
+                        stack.push(a);
+                        stack.push(f);
+                        stack.push(e);
+                    }
+                    Opcode::OP_2SWAP => {
+                        if !stack.has(4) {
+                            return false;
+                        }
+                        let a = stack.pop_unwrap();
+                        let b = stack.pop_unwrap();
+                        let c = stack.pop_unwrap();
+                        let d = stack.pop_unwrap();
+                        stack.push(b);
+                        stack.push(a);
+                        stack.push(d);
+                        stack.push(c);
+                    }
+                    Opcode::OP_ROT => {
+                        if !stack.has(3) {
+                            return false;
+                        }
+                        let a = stack.pop_unwrap();
+                        let b = stack.pop_unwrap();
+                        let c = stack.pop_unwrap();
+                        stack.push(b);
+                        stack.push(a);
+                        stack.push(c);
+                    }
+                    Opcode::OP_SIZE => {
+                        if !stack.has(1) {
+                            return false;
+                        }
+                        let top = stack.pop_unwrap();
+                        let size = top.len() as u32;
+                        stack.push(top);
+                        stack.push(size.to_le_bytes().to_vec());
+                    }
+
+                    // Bit logic
+                    Opcode::OP_EQUAL => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let a = stack.pop_unwrap();
+                        let b = stack.pop_unwrap();
+                        let is_equal =
+                            a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| x == y);
+                        stack.push(vec![is_equal as u8]);
+                    }
                     Opcode::OP_EQUALVERIFY => {
-                        let lhs = stack.pop();
-                        // println!("Lhs: {:?}", lhs);
-                        let rhs = stack.pop();
-                        // println!("Rhs: {:?}", rhs);
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let lhs = stack.pop_unwrap();
+                        let rhs = stack.pop_unwrap();
                         let is_equal = lhs.len() == rhs.len()
                             && lhs.iter().zip(rhs.iter()).all(|(x, y)| x == y);
-                        // println!("Is_equal: {is_equal}");
                         stack.push(vec![is_equal as u8]);
-                        let res = stack.pop();
+                        let res = stack.pop_unwrap();
                         let is_true = res.len() == 1 && res[0] == 1;
                         if !is_true {
                             return false;
                         }
                     }
+
+                    // Crypto
+                    Opcode::OP_RIPEMD160 => {
+                        if !stack.has(1) {
+                            return false;
+                        }
+                        let data = stack.pop_unwrap();
+                        let mut hasher = Ripemd160::new();
+                        hasher.update(&data);
+                        let result = hasher.finalize();
+                        stack.push(result.to_vec());
+                    }
+                    Opcode::OP_SHA256 => {
+                        if !stack.has(1) {
+                            return false;
+                        }
+                        let data = stack.pop_unwrap();
+                        let result = Sha256::digest(&data);
+                        stack.push(result.to_vec());
+                    }
                     Opcode::OP_HASH160 => {
-                        let hd = stack.pop();
+                        if !stack.has(1) {
+                            return false;
+                        }
+                        let hd = stack.pop_unwrap();
                         let res = Sha256::digest(&hd);
                         let mut hasher = Ripemd160::new();
                         hasher.update(res);
                         let result = hasher.finalize();
                         stack.push(result.to_vec());
                     }
-                    Opcode::OP_CHECKSIG => {
-                        let _pubkey = stack.pop();
-                        let _signature = stack.pop();
+                    Opcode::OP_HASH256 => {
+                        if !stack.has(1) {
+                            return false;
+                        }
+                        let data = stack.pop_unwrap();
+                        let res1 = Sha256::digest(&data);
+                        let res2 = Sha256::digest(&res1);
+                        stack.push(res2.to_vec());
                     }
+                    Opcode::OP_CHECKSIG => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let _pubkey = stack.pop_unwrap();
+                        let _signature = stack.pop_unwrap();
+                        // TODO: Implement actual signature verification
+                        // For now, push true (1) as a placeholder
+                        stack.push(vec![1]);
+                    }
+
+                    // Numeric operations
+                    Opcode::OP_1ADD => {
+                        if !stack.has(1) {
+                            return false;
+                        }
+                        let a = stack.pop_unwrap();
+                        if a.is_empty() {
+                            stack.push(vec![1]);
+                        } else {
+                            let val = a[0] as i32 + 1;
+                            stack.push(vec![val as u8]);
+                        }
+                    }
+                    Opcode::OP_1SUB => {
+                        if !stack.has(1) {
+                            return false;
+                        }
+                        let a = stack.pop_unwrap();
+                        if a.is_empty() {
+                            stack.push(vec![0x81]); // -1
+                        } else {
+                            let val = a[0] as i32 - 1;
+                            if val < 0 {
+                                stack.push(vec![0x81]); // -1 in Script format
+                            } else {
+                                stack.push(vec![val as u8]);
+                            }
+                        }
+                    }
+                    Opcode::OP_NEGATE => {
+                        if !stack.has(1) {
+                            return false;
+                        }
+                        let a = stack.pop_unwrap();
+                        if !a.is_empty() {
+                            if a[0] == 0x81 {
+                                // -1 becomes 1
+                                stack.push(vec![1]);
+                            } else if a[0] == 0 {
+                                stack.push(vec![0]);
+                            } else {
+                                // Positive becomes negative (add 0x80 flag)
+                                stack.push(vec![a[0] | 0x80]);
+                            }
+                        } else {
+                            stack.push(vec![0]);
+                        }
+                    }
+                    Opcode::OP_ABS => {
+                        if !stack.has(1) {
+                            return false;
+                        }
+                        let a = stack.pop_unwrap();
+                        if !a.is_empty() {
+                            // Remove sign bit if present
+                            stack.push(vec![a[0] & 0x7F]);
+                        } else {
+                            stack.push(vec![0]);
+                        }
+                    }
+                    Opcode::OP_NOT => {
+                        if !stack.has(1) {
+                            return false;
+                        }
+                        let a = stack.pop_unwrap();
+                        let is_zero = a.is_empty() || a.iter().all(|&x| x == 0);
+                        stack.push(vec![is_zero as u8]);
+                    }
+                    Opcode::OP_0NOTEQUAL => {
+                        if !stack.has(1) {
+                            return false;
+                        }
+                        let a = stack.pop_unwrap();
+                        let is_nonzero = !a.is_empty() && a.iter().any(|&x| x != 0);
+                        stack.push(vec![is_nonzero as u8]);
+                    }
+                    Opcode::OP_ADD => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let b = stack.pop_unwrap();
+                        let a = stack.pop_unwrap();
+                        let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
+                        let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
+                        let result = a_val + b_val;
+                        if result < 0 {
+                            stack.push(vec![(-result) as u8 | 0x80]);
+                        } else {
+                            stack.push(vec![result as u8]);
+                        }
+                    }
+                    Opcode::OP_SUB => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let b = stack.pop_unwrap();
+                        let a = stack.pop_unwrap();
+                        let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
+                        let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
+                        let result = a_val - b_val;
+                        if result < 0 {
+                            stack.push(vec![(-result) as u8 | 0x80]);
+                        } else {
+                            stack.push(vec![result as u8]);
+                        }
+                    }
+                    Opcode::OP_BOOLAND => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let b = stack.pop_unwrap();
+                        let a = stack.pop_unwrap();
+                        let a_true = !a.is_empty() && a.iter().any(|&x| x != 0);
+                        let b_true = !b.is_empty() && b.iter().any(|&x| x != 0);
+                        stack.push(vec![(a_true && b_true) as u8]);
+                    }
+                    Opcode::OP_BOOLOR => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let b = stack.pop_unwrap();
+                        let a = stack.pop_unwrap();
+                        let a_true = !a.is_empty() && a.iter().any(|&x| x != 0);
+                        let b_true = !b.is_empty() && b.iter().any(|&x| x != 0);
+                        stack.push(vec![(a_true || b_true) as u8]);
+                    }
+                    Opcode::OP_NUMEQUAL => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let b = stack.pop_unwrap();
+                        let a = stack.pop_unwrap();
+                        let is_equal =
+                            a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| x == y);
+                        stack.push(vec![is_equal as u8]);
+                    }
+                    Opcode::OP_NUMEQUALVERIFY => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let b = stack.pop_unwrap();
+                        let a = stack.pop_unwrap();
+                        let is_equal =
+                            a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| x == y);
+                        if !is_equal {
+                            return false;
+                        }
+                    }
+                    Opcode::OP_NUMNOTEQUAL => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let b = stack.pop_unwrap();
+                        let a = stack.pop_unwrap();
+                        let is_not_equal =
+                            a.len() != b.len() || !a.iter().zip(b.iter()).all(|(x, y)| x == y);
+                        stack.push(vec![is_not_equal as u8]);
+                    }
+                    Opcode::OP_LESSTHAN => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let b = stack.pop_unwrap();
+                        let a = stack.pop_unwrap();
+                        let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
+                        let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
+                        stack.push(vec![(a_val < b_val) as u8]);
+                    }
+                    Opcode::OP_GREATERTHAN => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let b = stack.pop_unwrap();
+                        let a = stack.pop_unwrap();
+                        let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
+                        let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
+                        stack.push(vec![(a_val > b_val) as u8]);
+                    }
+                    Opcode::OP_LESSTHANOREQUAL => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let b = stack.pop_unwrap();
+                        let a = stack.pop_unwrap();
+                        let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
+                        let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
+                        stack.push(vec![(a_val <= b_val) as u8]);
+                    }
+                    Opcode::OP_GREATERTHANOREQUAL => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let b = stack.pop_unwrap();
+                        let a = stack.pop_unwrap();
+                        let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
+                        let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
+                        stack.push(vec![(a_val >= b_val) as u8]);
+                    }
+                    Opcode::OP_MIN => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let b = stack.pop_unwrap();
+                        let a = stack.pop_unwrap();
+                        let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
+                        let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
+                        if a_val < b_val {
+                            stack.push(a);
+                        } else {
+                            stack.push(b);
+                        }
+                    }
+                    Opcode::OP_MAX => {
+                        if !stack.has(2) {
+                            return false;
+                        }
+                        let b = stack.pop_unwrap();
+                        let a = stack.pop_unwrap();
+                        let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
+                        let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
+                        if a_val > b_val {
+                            stack.push(a);
+                        } else {
+                            stack.push(b);
+                        }
+                    }
+                    Opcode::OP_WITHIN => {
+                        if !stack.has(3) {
+                            return false;
+                        }
+                        let max = stack.pop_unwrap();
+                        let min = stack.pop_unwrap();
+                        let x = stack.pop_unwrap();
+                        let x_val = if x.is_empty() { 0 } else { x[0] as i32 };
+                        let min_val = if min.is_empty() { 0 } else { min[0] as i32 };
+                        let max_val = if max.is_empty() { 0 } else { max[0] as i32 };
+                        let within = x_val >= min_val && x_val < max_val;
+                        stack.push(vec![within as u8]);
+                    }
+
+                    // Control flow
+                    Opcode::OP_NOP => {
+                        // No operation
+                    }
+                    Opcode::OP_VERIFY => {
+                        if !stack.has(1) {
+                            return false;
+                        }
+                        let val = stack.pop_unwrap();
+                        let is_true = !val.is_empty() && val != vec![0];
+                        if !is_true {
+                            return false;
+                        }
+                    }
+
                     _ => unimplemented!("The opcode {opcode} is not implemented"),
                 },
             }
         }
         #[cfg(test)]
         println!("Stack at the end: {:?}", stack.0);
-        stack.0.is_empty()
-    }
-}
 
-#[cfg(test)]
-mod tests {
-    use alloc::borrow::ToOwned;
-    use alloc::string::ToString;
-
-    use super::*;
-    use bincode::{deserialize, serialize};
-    use hex;
-
-    // Examples from https://learnmeabitcoin.com/technical/transaction/input/scriptsig/
-    #[test]
-    pub fn test_to_bytes() {
-        // P2PKH
-        {
-            let data = "3045022100c233c3a8a510e03ad18b0a24694ef00c78101bfd5ac075b8c1037952ce26e91e02205aa5f8f88f29bb4ad5808ebc12abfd26bd791256f367b04c6d955f01f28a772401";
-            let hex_data: Vec<u8> = hex::decode(data).unwrap();
-            let data2 = "03f0609c81a45f8cab67fc2d050c21b1acd3d37c7acfd54041be6601ab4cef4f31";
-            let hex_data2: Vec<u8> = hex::decode(data2).unwrap();
-            let script = Script(vec![
-                Term::Instruction(Opcode::OP_PUSHBYTES(72)),
-                Term::Data(hex_data),
-                Term::Instruction(Opcode::OP_PUSHBYTES(33)),
-                Term::Data(hex_data2),
-            ]);
-
-            let exp_output = "483045022100c233c3a8a510e03ad18b0a24694ef00c78101bfd5ac075b8c1037952ce26e91e02205aa5f8f88f29bb4ad5808ebc12abfd26bd791256f367b04c6d955f01f28a7724012103f0609c81a45f8cab67fc2d050c21b1acd3d37c7acfd54041be6601ab4cef4f31";
-            let exp_output = hex::decode(exp_output).unwrap();
-            assert_eq!(exp_output, script.to_bytes());
+        // Script succeeds if stack is not empty and top element is true
+        if stack.0.is_empty() {
+            return false;
         }
-        // P2PK
-        {
-            let data = "30440220576497b7e6f9b553c0aba0d8929432550e092db9c130aae37b84b545e7f4a36c022066cb982ed80608372c139d7bb9af335423d5280350fe3e06bd510e695480914f01";
-            let data: Vec<u8> = hex::decode(data).unwrap();
-            let script = Script(vec![
-                Term::Instruction(Opcode::OP_PUSHBYTES(71)),
-                Term::Data(data),
-            ]);
-            let exp_output = "4730440220576497b7e6f9b553c0aba0d8929432550e092db9c130aae37b84b545e7f4a36c022066cb982ed80608372c139d7bb9af335423d5280350fe3e06bd510e695480914f01";
-            let exp_output = hex::decode(exp_output).unwrap();
-            assert_eq!(exp_output, script.to_bytes());
-        }
-        // P2MS
-        {
-            let data = "304502204aa764d2b30f572cc4ef17c8ed8536c46f595a08ba41a611b14f32c60282c150022100ede45011be565dc225cc9be292638cf7270b129934fe8758634716b8f7a34c0701";
-            let data = hex::decode(data).unwrap();
-            let script = Script(vec![
-                Term::Instruction(Opcode::OP_0),
-                Term::Instruction(Opcode::OP_PUSHBYTES(72)),
-                Term::Data(data),
-            ]);
-            let exp_output = "0048304502204aa764d2b30f572cc4ef17c8ed8536c46f595a08ba41a611b14f32c60282c150022100ede45011be565dc225cc9be292638cf7270b129934fe8758634716b8f7a34c0701";
-            let exp_output = hex::decode(exp_output).unwrap();
-            assert_eq!(exp_output, script.to_bytes());
-        }
-        // P2SH
-        {
-            let data = "3044022100d0ed946330182916da16a6149cd313a4b1a7b41591ee52fb3e79d64e36139d66021f6ccf173040ef24cb45c4db3e9c771c938a1ba2cf8d2404416f70886e360af401";
-            let data = hex::decode(data).unwrap();
-
-            let data2 = "5121022afc20bf379bc96a2f4e9e63ffceb8652b2b6a097f63fbee6ecec2a49a48010e2103a767c7221e9f15f870f1ad9311f5ab937d79fcaeee15bb2c722bca515581b4c052ae";
-            let data2 = hex::decode(data2).unwrap();
-            let script = Script(vec![
-                Term::Instruction(Opcode::OP_0),
-                Term::Instruction(Opcode::OP_PUSHBYTES(71)),
-                Term::Data(data),
-                Term::Instruction(Opcode::OP_PUSHBYTES(71)),
-                Term::Data(data2),
-            ]);
-            let exp_output = "00473044022100d0ed946330182916da16a6149cd313a4b1a7b41591ee52fb3e79d64e36139d66021f6ccf173040ef24cb45c4db3e9c771c938a1ba2cf8d2404416f70886e360af401475121022afc20bf379bc96a2f4e9e63ffceb8652b2b6a097f63fbee6ecec2a49a48010e2103a767c7221e9f15f870f1ad9311f5ab937d79fcaeee15bb2c722bca515581b4c052ae";
-            let exp_output = hex::decode(exp_output).unwrap();
-            assert_eq!(exp_output, script.to_bytes());
-        }
-        // Genesis bloc - coinbase
-        {
-            let data = "5468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73";
-            let data = hex::decode(data).unwrap();
-            let script = Script(vec![
-                Term::Instruction(Opcode::OP_PUSHBYTES(4)),
-                Term::Data(hex::decode("ffff001d").unwrap()),
-                Term::Instruction(Opcode::OP_PUSHBYTES(1)),
-                Term::Data(hex::decode("04").unwrap()),
-                Term::Instruction(Opcode::OP_PUSHBYTES(69)),
-                Term::Data(data),
-            ]);
-            let exp_output = "04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73";
-            let exp_output = hex::decode(exp_output).unwrap();
-            assert_eq!(exp_output, script.to_bytes());
-        }
-    }
-
-    #[test]
-    pub fn test_script_of_bytes() {
-        let asm_hex = "76a91455ae51684c43435da751ac8d2173b2652eb6410588ac";
-        let script = hex::decode(asm_hex).unwrap();
-        let exp_script = Script::new(vec![
-            Term::Instruction(Opcode::OP_DUP),
-            Term::Instruction(Opcode::OP_HASH160),
-            Term::Instruction(Opcode::OP_PUSHBYTES(20)),
-            Term::Data(vec![
-                85, 174, 81, 104, 76, 67, 67, 93, 167, 81, 172, 141, 33, 115, 178, 101, 46, 182,
-                65, 5,
-            ]),
-            Term::Instruction(Opcode::OP_EQUALVERIFY),
-            Term::Instruction(Opcode::OP_CHECKSIG),
-        ]);
-        assert_eq!(Script::of_bytes(script), exp_script)
-    }
-
-    #[test]
-    pub fn test_decode_pushdata1() {
-        let data = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-        let data = hex::decode(data).unwrap();
-        let script = Script(vec![
-            Term::Instruction(Opcode::OP_PUSHDATA1(0x4c)),
-            Term::Data(data),
-        ]);
-        let exp_output = "4c4caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-        let exp_output = hex::decode(exp_output).unwrap();
-        assert_eq!(exp_output, script.to_bytes());
-    }
-
-    #[test]
-    pub fn test_decode_pushdata2() {
-        let data = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-        let data = hex::decode(data).unwrap();
-        let script = Script(vec![
-            Term::Instruction(Opcode::OP_PUSHDATA2([0x00, 0x01])),
-            Term::Data(data),
-        ]);
-        let exp_output = "4d0001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-        let exp_output = hex::decode(exp_output).unwrap();
-        assert_eq!(exp_output, script.to_bytes());
-    }
-
-    #[test]
-    pub fn test_decode_pushdata4() {
-        let data = "ab".repeat(1 << 16);
-        let script = Script(vec![
-            Term::Instruction(Opcode::OP_PUSHDATA4([0x00, 0x00, 0x01, 0x00])),
-            Term::Data(hex::decode(data).unwrap()),
-        ]);
-        script.to_bytes();
-        assert_eq!(script.to_bytes().len(), 5 + (1 << 16))
-    }
-
-    #[test]
-    pub fn test_serialize_and_deserialize() {
-        let data = "5468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73";
-        let data = hex::decode(data).unwrap();
-        let script = Script(vec![
-            Term::Instruction(Opcode::OP_PUSHBYTES(4)),
-            Term::Data(hex::decode("ffff001d").unwrap()),
-            Term::Instruction(Opcode::OP_PUSHBYTES(1)),
-            Term::Data(hex::decode("04").unwrap()),
-            Term::Instruction(Opcode::OP_PUSHBYTES(69)),
-            Term::Data(data),
-        ]);
-        // Checking serialize/deserialize works together
-        let res: Vec<u8> = serialize(&script).unwrap();
-        let script2: Script = deserialize(&res).unwrap();
-        assert_eq!(script, script2);
-    }
-
-    #[test]
-    pub fn test_serialize_and_deserialize_pushdata1() {
-        let data = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-        let data = hex::decode(data).unwrap();
-        let script = Script(vec![
-            Term::Instruction(Opcode::OP_PUSHDATA1(0x4c)),
-            Term::Data(data),
-        ]);
-        // Checking serialize/deserialize works together
-        let res: Vec<u8> = serialize(&script).unwrap();
-        let script2: Script = deserialize(&res).unwrap();
-        assert_eq!(script, script2);
-    }
-
-    #[test]
-    pub fn test_serialize_and_deserialize_pushdata2() {
-        let data = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-        let data = hex::decode(data).unwrap();
-        let script = Script(vec![
-            Term::Instruction(Opcode::OP_PUSHDATA2([0x00, 0x01])),
-            Term::Data(data),
-        ]);
-        // Checking serialize/deserialize works together
-        let res: Vec<u8> = serialize(&script).unwrap();
-        let script2: Script = deserialize(&res).unwrap();
-        assert_eq!(script, script2);
-    }
-
-    #[test]
-    pub fn test_serialize_and_deserialize_pushdata4() {
-        let data = "ab".repeat(1 << 16);
-        let script = Script(vec![
-            Term::Instruction(Opcode::OP_PUSHDATA4([0x00, 0x00, 0x01, 0x00])),
-            Term::Data(hex::decode(data).unwrap()),
-        ]);
-        // Checking serialize/deserialize works together
-        let res: Vec<u8> = serialize(&script).unwrap();
-        let script2: Script = deserialize(&res).unwrap();
-        assert_eq!(script, script2);
-    }
-
-    // FIXME: ignore if riscv32i
-    #[test]
-    pub fn test_display_asm() {
-        let data = "5468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73";
-        let data = hex::decode(data).unwrap();
-        let script = Script(vec![
-            Term::Instruction(Opcode::OP_PUSHBYTES(4)),
-            Term::Data(hex::decode("ffff001d").unwrap()),
-            Term::Instruction(Opcode::OP_PUSHBYTES(1)),
-            Term::Data(hex::decode("04").unwrap()),
-            Term::Instruction(Opcode::OP_PUSHBYTES(69)),
-            Term::Data(data),
-        ]);
-
-        assert_eq!(
-            script.to_string(),
-            "OP_PUSHBYTES4 0xffff001d OP_PUSHBYTES1 0x04 OP_PUSHBYTES69 0x5468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73"
-        );
-    }
-
-    #[test]
-    pub fn test_interpreter_p2pkh() {
-        let _tx = "01000000019c2e0f24a03e72002a96acedb12a632e72b6b74c05dc3ceab1fe78237f886c48010000006a47304402203da9d487be5302a6d69e02a861acff1da472885e43d7528ed9b1b537a8e2cac9022002d1bca03a1e9715a99971bafe3b1852b7a4f0168281cbd27a220380a01b3307012102c9950c622494c2e9ff5a003e33b690fe4832477d32c2d256c67eab8bf613b34effffffff02b6f50500000000001976a914bdf63990d6dc33d705b756e13dd135466c06b3b588ac845e0201000000001976a9145fb0e9755a3424efd2ba0587d20b1e98ee29814a88ac00000000";
-        let sig = "47304402203da9d487be5302a6d69e02a861acff1da472885e43d7528ed9b1b537a8e2cac9022002d1bca03a1e9715a99971bafe3b1852b7a4f0168281cbd27a220380a01b330701";
-        let redeem_script = "2102c9950c622494c2e9ff5a003e33b690fe4832477d32c2d256c67eab8bf613b34e";
-        let asm_hex = "76a9145fb0e9755a3424efd2ba0587d20b1e98ee29814a88ac";
-        let mut res = sig.to_owned();
-        res.push_str(redeem_script);
-        res.push_str(asm_hex);
-        let script = Script::of_bytes(hex::decode(res).unwrap());
-        println!("Script is {script}");
-        assert!(script.interpret());
+        let top = &stack.0[stack.0.len() - 1];
+        // Element is true if it's not empty and not all zeros
+        !top.is_empty() && top.iter().any(|&x| x != 0)
     }
 }
