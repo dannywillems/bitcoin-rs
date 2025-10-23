@@ -12,39 +12,80 @@ use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
 use serde::Serializer;
+use sha1::Sha1;
 use sha2::Sha256;
 
+/// Bitcoin Script execution stack
+///
+/// Bitcoin Script uses two stacks during execution:
+/// - **main**: The primary stack where most operations occur
+/// - **alt**: The alternate stack (altstack) for temporary storage
+///
+/// The altstack is accessed via OP_TOALTSTACK and OP_FROMALTSTACK opcodes,
+/// allowing scripts to temporarily move data off the main stack.
 #[derive(Clone)]
-pub struct Stack(Vec<Vec<u8>>);
+pub struct Stack {
+    /// Main execution stack
+    main: Vec<Vec<u8>>,
+    /// Alternate stack for temporary storage
+    alt: Vec<Vec<u8>>,
+}
 
 impl Stack {
     pub fn new() -> Self {
-        Self(vec![])
+        Self {
+            main: vec![],
+            alt: vec![],
+        }
     }
 
+    /// Push a value onto the main stack
     pub fn push(&mut self, v: Vec<u8>) {
-        self.0.push(v)
+        self.main.push(v)
     }
 
+    /// Pop a value from the main stack
     pub fn pop(&mut self) -> Option<Vec<u8>> {
-        self.0.pop()
+        self.main.pop()
     }
 
+    /// Pop a value from the main stack (panics if empty)
     pub fn pop_unwrap(&mut self) -> Vec<u8> {
-        self.0.pop().unwrap()
+        self.main.pop().unwrap()
     }
 
+    /// Check if the main stack is empty
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.main.is_empty()
     }
 
+    /// Get the number of elements on the main stack
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.main.len()
     }
 
-    /// Check if stack has at least n elements
+    /// Check if the main stack has at least n elements
     pub fn has(&self, n: usize) -> bool {
-        self.0.len() >= n
+        self.main.len() >= n
+    }
+
+    /// Move top item from main stack to altstack (OP_TOALTSTACK)
+    pub fn to_altstack(&mut self) {
+        if let Some(v) = self.main.pop() {
+            self.alt.push(v);
+        }
+    }
+
+    /// Move top item from altstack to main stack (OP_FROMALTSTACK)
+    pub fn from_altstack(&mut self) {
+        if let Some(v) = self.alt.pop() {
+            self.main.push(v);
+        }
+    }
+
+    /// Check if the altstack has at least n elements
+    pub fn has_alt(&self, n: usize) -> bool {
+        self.alt.len() >= n
     }
 
     #[cfg(test)]
@@ -53,7 +94,7 @@ impl Stack {
             println!("Stack is empty");
             return;
         }
-        for elem in self.0.iter().rev() {
+        for elem in self.main.iter().rev() {
             let x = hex::encode(elem);
             println!("{}", x);
         }
@@ -996,6 +1037,10 @@ impl Script {
     pub fn interpret(&self) -> bool {
         let mut stack = Stack::new();
         let mut exp_bytes: Option<usize> = None;
+        // Execution stack for control flow (IF/NOTIF/ELSE/ENDIF)
+        // Empty means executing, false means skipping this branch
+        let mut vf_exec: Vec<bool> = Vec::new();
+
         // FIXME: remove clone
         for c in self.0.clone() {
             #[cfg(test)]
@@ -1020,525 +1065,868 @@ impl Script {
                         }
                     }
                 }
-                Term::Instruction(opcode) => match opcode {
-                    // Push value opcodes
-                    Opcode::OP_0 => stack.push(vec![0]),
-                    Opcode::OP_FALSE => stack.push(vec![0]),
-                    Opcode::OP_PUSHBYTES(n) => {
-                        exp_bytes = Some(n.into());
-                    }
-                    Opcode::OP_1NEGATE => stack.push(vec![0x81]), // -1 in Script number format
-                    Opcode::OP_1 | Opcode::OP_TRUE => stack.push(vec![1]),
-                    Opcode::OP_2 => stack.push(vec![2]),
-                    Opcode::OP_3 => stack.push(vec![3]),
-                    Opcode::OP_4 => stack.push(vec![4]),
-                    Opcode::OP_5 => stack.push(vec![5]),
-                    Opcode::OP_6 => stack.push(vec![6]),
-                    Opcode::OP_7 => stack.push(vec![7]),
-                    Opcode::OP_8 => stack.push(vec![8]),
-                    Opcode::OP_9 => stack.push(vec![9]),
-                    Opcode::OP_10 => stack.push(vec![10]),
-                    Opcode::OP_11 => stack.push(vec![11]),
-                    Opcode::OP_12 => stack.push(vec![12]),
-                    Opcode::OP_13 => stack.push(vec![13]),
-                    Opcode::OP_14 => stack.push(vec![14]),
-                    Opcode::OP_15 => stack.push(vec![15]),
-                    Opcode::OP_16 => stack.push(vec![16]),
-
-                    // Stack manipulation
-                    Opcode::OP_DROP => {
-                        if !stack.has(1) {
-                            return false;
-                        }
-                        stack.pop_unwrap();
-                    }
-                    Opcode::OP_DUP => {
-                        if !stack.has(1) {
-                            return false;
-                        }
-                        let hd = stack.pop_unwrap();
-                        stack.push(hd.clone());
-                        stack.push(hd);
-                    }
-                    Opcode::OP_NIP => {
-                        if !stack.has(2) {
-                            return false;
-                        }
-                        let top = stack.pop_unwrap();
-                        stack.pop_unwrap(); // Remove second item
-                        stack.push(top);
-                    }
-                    Opcode::OP_OVER => {
-                        if !stack.has(2) {
-                            return false;
-                        }
-                        let a = stack.pop_unwrap();
-                        let b = stack.pop_unwrap();
-                        stack.push(b.clone());
-                        stack.push(a);
-                        stack.push(b);
-                    }
-                    Opcode::OP_SWAP => {
-                        if !stack.has(2) {
-                            return false;
-                        }
-                        let a = stack.pop_unwrap();
-                        let b = stack.pop_unwrap();
-                        stack.push(a);
-                        stack.push(b);
-                    }
-                    Opcode::OP_TUCK => {
-                        if !stack.has(2) {
-                            return false;
-                        }
-                        let a = stack.pop_unwrap();
-                        let b = stack.pop_unwrap();
-                        stack.push(a.clone());
-                        stack.push(b);
-                        stack.push(a);
-                    }
-                    Opcode::OP_2DROP => {
-                        if !stack.has(2) {
-                            return false;
-                        }
-                        stack.pop_unwrap();
-                        stack.pop_unwrap();
-                    }
-                    Opcode::OP_2DUP => {
-                        if !stack.has(2) {
-                            return false;
-                        }
-                        let a = stack.pop_unwrap();
-                        let b = stack.pop_unwrap();
-                        stack.push(b.clone());
-                        stack.push(a.clone());
-                        stack.push(b);
-                        stack.push(a);
-                    }
-                    Opcode::OP_3DUP => {
-                        if !stack.has(3) {
-                            return false;
-                        }
-                        let a = stack.pop_unwrap();
-                        let b = stack.pop_unwrap();
-                        let c = stack.pop_unwrap();
-                        stack.push(c.clone());
-                        stack.push(b.clone());
-                        stack.push(a.clone());
-                        stack.push(c);
-                        stack.push(b);
-                        stack.push(a);
-                    }
-                    Opcode::OP_2OVER => {
-                        if !stack.has(4) {
-                            return false;
-                        }
-                        let a = stack.pop_unwrap();
-                        let b = stack.pop_unwrap();
-                        let c = stack.pop_unwrap();
-                        let d = stack.pop_unwrap();
-                        stack.push(d.clone());
-                        stack.push(c.clone());
-                        stack.push(b);
-                        stack.push(a);
-                        stack.push(d);
-                        stack.push(c);
-                    }
-                    Opcode::OP_2ROT => {
-                        if !stack.has(6) {
-                            return false;
-                        }
-                        let a = stack.pop_unwrap();
-                        let b = stack.pop_unwrap();
-                        let c = stack.pop_unwrap();
-                        let d = stack.pop_unwrap();
-                        let e = stack.pop_unwrap();
-                        let f = stack.pop_unwrap();
-                        stack.push(d);
-                        stack.push(c);
-                        stack.push(b);
-                        stack.push(a);
-                        stack.push(f);
-                        stack.push(e);
-                    }
-                    Opcode::OP_2SWAP => {
-                        if !stack.has(4) {
-                            return false;
-                        }
-                        let a = stack.pop_unwrap();
-                        let b = stack.pop_unwrap();
-                        let c = stack.pop_unwrap();
-                        let d = stack.pop_unwrap();
-                        stack.push(b);
-                        stack.push(a);
-                        stack.push(d);
-                        stack.push(c);
-                    }
-                    Opcode::OP_ROT => {
-                        if !stack.has(3) {
-                            return false;
-                        }
-                        let a = stack.pop_unwrap();
-                        let b = stack.pop_unwrap();
-                        let c = stack.pop_unwrap();
-                        stack.push(b);
-                        stack.push(a);
-                        stack.push(c);
-                    }
-                    Opcode::OP_SIZE => {
-                        if !stack.has(1) {
-                            return false;
-                        }
-                        let top = stack.pop_unwrap();
-                        let size = top.len() as u32;
-                        stack.push(top);
-                        stack.push(size.to_le_bytes().to_vec());
+                Term::Instruction(opcode) => {
+                    // VERIF and VERNOTIF are always invalid, even in unexecuted branches
+                    // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L444
+                    if matches!(opcode, Opcode::OP_VERIF | Opcode::OP_VERNOTIF) {
+                        return false;
                     }
 
-                    // Bit logic
-                    Opcode::OP_EQUAL => {
-                        if !stack.has(2) {
-                            return false;
-                        }
-                        let a = stack.pop_unwrap();
-                        let b = stack.pop_unwrap();
-                        let is_equal =
-                            a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| x == y);
-                        stack.push(vec![is_equal as u8]);
-                    }
-                    Opcode::OP_EQUALVERIFY => {
-                        if !stack.has(2) {
-                            return false;
-                        }
-                        let lhs = stack.pop_unwrap();
-                        let rhs = stack.pop_unwrap();
-                        let is_equal = lhs.len() == rhs.len()
-                            && lhs.iter().zip(rhs.iter()).all(|(x, y)| x == y);
-                        stack.push(vec![is_equal as u8]);
-                        let res = stack.pop_unwrap();
-                        let is_true = res.len() == 1 && res[0] == 1;
-                        if !is_true {
-                            return false;
-                        }
+                    // Check if we're currently executing
+                    let f_exec = vf_exec.iter().all(|&v| v);
+
+                    // Skip this opcode if not executing, unless it's a control flow opcode
+                    // or PUSHBYTES (which we need to parse even when skipping)
+                    if !f_exec
+                        && !matches!(
+                            opcode,
+                            Opcode::OP_IF
+                                | Opcode::OP_NOTIF
+                                | Opcode::OP_ELSE
+                                | Opcode::OP_ENDIF
+                                | Opcode::OP_PUSHBYTES(_)
+                        )
+                    {
+                        continue;
                     }
 
-                    // Crypto
-                    Opcode::OP_RIPEMD160 => {
-                        if !stack.has(1) {
-                            return false;
+                    match opcode {
+                        // Push value opcodes
+                        Opcode::OP_0 => stack.push(vec![0]),
+                        Opcode::OP_FALSE => stack.push(vec![0]),
+                        Opcode::OP_PUSHBYTES(n) => {
+                            exp_bytes = Some(n.into());
                         }
-                        let data = stack.pop_unwrap();
-                        let mut hasher = Ripemd160::new();
-                        hasher.update(&data);
-                        let result = hasher.finalize();
-                        stack.push(result.to_vec());
-                    }
-                    Opcode::OP_SHA256 => {
-                        if !stack.has(1) {
-                            return false;
-                        }
-                        let data = stack.pop_unwrap();
-                        let result = Sha256::digest(&data);
-                        stack.push(result.to_vec());
-                    }
-                    Opcode::OP_HASH160 => {
-                        if !stack.has(1) {
-                            return false;
-                        }
-                        let hd = stack.pop_unwrap();
-                        let res = Sha256::digest(&hd);
-                        let mut hasher = Ripemd160::new();
-                        hasher.update(res);
-                        let result = hasher.finalize();
-                        stack.push(result.to_vec());
-                    }
-                    Opcode::OP_HASH256 => {
-                        if !stack.has(1) {
-                            return false;
-                        }
-                        let data = stack.pop_unwrap();
-                        let res1 = Sha256::digest(&data);
-                        let res2 = Sha256::digest(&res1);
-                        stack.push(res2.to_vec());
-                    }
-                    Opcode::OP_CHECKSIG => {
-                        if !stack.has(2) {
-                            return false;
-                        }
-                        let _pubkey = stack.pop_unwrap();
-                        let _signature = stack.pop_unwrap();
-                        // TODO: Implement actual signature verification
-                        // For now, push true (1) as a placeholder
-                        stack.push(vec![1]);
-                    }
+                        Opcode::OP_1NEGATE => stack.push(vec![0x81]), // -1 in Script number format
+                        Opcode::OP_1 | Opcode::OP_TRUE => stack.push(vec![1]),
+                        Opcode::OP_2 => stack.push(vec![2]),
+                        Opcode::OP_3 => stack.push(vec![3]),
+                        Opcode::OP_4 => stack.push(vec![4]),
+                        Opcode::OP_5 => stack.push(vec![5]),
+                        Opcode::OP_6 => stack.push(vec![6]),
+                        Opcode::OP_7 => stack.push(vec![7]),
+                        Opcode::OP_8 => stack.push(vec![8]),
+                        Opcode::OP_9 => stack.push(vec![9]),
+                        Opcode::OP_10 => stack.push(vec![10]),
+                        Opcode::OP_11 => stack.push(vec![11]),
+                        Opcode::OP_12 => stack.push(vec![12]),
+                        Opcode::OP_13 => stack.push(vec![13]),
+                        Opcode::OP_14 => stack.push(vec![14]),
+                        Opcode::OP_15 => stack.push(vec![15]),
+                        Opcode::OP_16 => stack.push(vec![16]),
 
-                    // Numeric operations
-                    Opcode::OP_1ADD => {
-                        if !stack.has(1) {
+                        // Control flow opcodes
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L451
+                        Opcode::OP_IF | Opcode::OP_NOTIF => {
+                            let mut f_value = false;
+
+                            // Check if we're currently executing
+                            if vf_exec.iter().all(|&v| v) {
+                                // We're executing, so evaluate the condition
+                                if !stack.has(1) {
+                                    return false;
+                                }
+                                let vch = stack.pop_unwrap();
+                                // Value is true if not empty and not all zeros
+                                f_value = !vch.is_empty() && vch.iter().any(|&x| x != 0);
+
+                                // NOTIF inverts the condition
+                                if opcode == Opcode::OP_NOTIF {
+                                    f_value = !f_value;
+                                }
+                            }
+                            // If we're skipping, just push false to maintain nesting
+                            vf_exec.push(f_value);
+                        }
+
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L464
+                        Opcode::OP_ELSE => {
+                            if vf_exec.is_empty() {
+                                return false; // ELSE without IF
+                            }
+                            let last_idx = vf_exec.len() - 1;
+                            vf_exec[last_idx] = !vf_exec[last_idx];
+                        }
+
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L467
+                        Opcode::OP_ENDIF => {
+                            if vf_exec.is_empty() {
+                                return false; // ENDIF without IF
+                            }
+                            vf_exec.pop();
+                        }
+
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L499
+                        Opcode::OP_RETURN => {
                             return false;
                         }
-                        let a = stack.pop_unwrap();
-                        if a.is_empty() {
-                            stack.push(vec![1]);
-                        } else {
-                            let val = a[0] as i32 + 1;
-                            stack.push(vec![val as u8]);
+
+                        // Stack manipulation
+                        Opcode::OP_DROP => {
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            stack.pop_unwrap();
                         }
-                    }
-                    Opcode::OP_1SUB => {
-                        if !stack.has(1) {
-                            return false;
+                        Opcode::OP_DUP => {
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let hd = stack.pop_unwrap();
+                            stack.push(hd.clone());
+                            stack.push(hd);
                         }
-                        let a = stack.pop_unwrap();
-                        if a.is_empty() {
-                            stack.push(vec![0x81]); // -1
-                        } else {
-                            let val = a[0] as i32 - 1;
-                            if val < 0 {
-                                stack.push(vec![0x81]); // -1 in Script format
+                        Opcode::OP_NIP => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let top = stack.pop_unwrap();
+                            stack.pop_unwrap(); // Remove second item
+                            stack.push(top);
+                        }
+                        Opcode::OP_OVER => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let a = stack.pop_unwrap();
+                            let b = stack.pop_unwrap();
+                            stack.push(b.clone());
+                            stack.push(a);
+                            stack.push(b);
+                        }
+                        Opcode::OP_SWAP => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let a = stack.pop_unwrap();
+                            let b = stack.pop_unwrap();
+                            stack.push(a);
+                            stack.push(b);
+                        }
+                        Opcode::OP_TUCK => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let a = stack.pop_unwrap();
+                            let b = stack.pop_unwrap();
+                            stack.push(a.clone());
+                            stack.push(b);
+                            stack.push(a);
+                        }
+                        Opcode::OP_2DROP => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            stack.pop_unwrap();
+                            stack.pop_unwrap();
+                        }
+                        Opcode::OP_2DUP => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let a = stack.pop_unwrap();
+                            let b = stack.pop_unwrap();
+                            stack.push(b.clone());
+                            stack.push(a.clone());
+                            stack.push(b);
+                            stack.push(a);
+                        }
+                        Opcode::OP_3DUP => {
+                            if !stack.has(3) {
+                                return false;
+                            }
+                            let a = stack.pop_unwrap();
+                            let b = stack.pop_unwrap();
+                            let c = stack.pop_unwrap();
+                            stack.push(c.clone());
+                            stack.push(b.clone());
+                            stack.push(a.clone());
+                            stack.push(c);
+                            stack.push(b);
+                            stack.push(a);
+                        }
+                        Opcode::OP_2OVER => {
+                            if !stack.has(4) {
+                                return false;
+                            }
+                            let a = stack.pop_unwrap();
+                            let b = stack.pop_unwrap();
+                            let c = stack.pop_unwrap();
+                            let d = stack.pop_unwrap();
+                            stack.push(d.clone());
+                            stack.push(c.clone());
+                            stack.push(b);
+                            stack.push(a);
+                            stack.push(d);
+                            stack.push(c);
+                        }
+                        Opcode::OP_2ROT => {
+                            if !stack.has(6) {
+                                return false;
+                            }
+                            let a = stack.pop_unwrap();
+                            let b = stack.pop_unwrap();
+                            let c = stack.pop_unwrap();
+                            let d = stack.pop_unwrap();
+                            let e = stack.pop_unwrap();
+                            let f = stack.pop_unwrap();
+                            stack.push(d);
+                            stack.push(c);
+                            stack.push(b);
+                            stack.push(a);
+                            stack.push(f);
+                            stack.push(e);
+                        }
+                        Opcode::OP_2SWAP => {
+                            if !stack.has(4) {
+                                return false;
+                            }
+                            let a = stack.pop_unwrap();
+                            let b = stack.pop_unwrap();
+                            let c = stack.pop_unwrap();
+                            let d = stack.pop_unwrap();
+                            stack.push(b);
+                            stack.push(a);
+                            stack.push(d);
+                            stack.push(c);
+                        }
+                        Opcode::OP_ROT => {
+                            if !stack.has(3) {
+                                return false;
+                            }
+                            let a = stack.pop_unwrap();
+                            let b = stack.pop_unwrap();
+                            let c = stack.pop_unwrap();
+                            stack.push(b);
+                            stack.push(a);
+                            stack.push(c);
+                        }
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L470
+                        Opcode::OP_TOALTSTACK => {
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            stack.to_altstack();
+                        }
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L475
+                        Opcode::OP_FROMALTSTACK => {
+                            if !stack.has_alt(1) {
+                                return false;
+                            }
+                            stack.from_altstack();
+                        }
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L560
+                        Opcode::OP_IFDUP => {
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let top = &stack.main[stack.len() - 1];
+                            // Duplicate if not zero
+                            if !top.is_empty() && top.iter().any(|&x| x != 0) {
+                                stack.push(top.clone());
+                            }
+                        }
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L567
+                        Opcode::OP_DEPTH => {
+                            let depth = stack.len() as u32;
+                            stack.push(depth.to_le_bytes().to_vec());
+                        }
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L580
+                        Opcode::OP_PICK => {
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let n_bytes = stack.pop_unwrap();
+                            let n = if n_bytes.is_empty() {
+                                0
                             } else {
+                                n_bytes[0] as usize
+                            };
+                            if !stack.has(n + 1) {
+                                return false;
+                            }
+                            let idx = stack.len() - 1 - n;
+                            let val = stack.main[idx].clone();
+                            stack.push(val);
+                        }
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L589
+                        Opcode::OP_ROLL => {
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let n_bytes = stack.pop_unwrap();
+                            let n = if n_bytes.is_empty() {
+                                0
+                            } else {
+                                n_bytes[0] as usize
+                            };
+                            if !stack.has(n + 1) {
+                                return false;
+                            }
+                            let idx = stack.len() - 1 - n;
+                            let val = stack.main.remove(idx);
+                            stack.push(val);
+                        }
+                        Opcode::OP_SIZE => {
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let top = stack.pop_unwrap();
+                            let size = top.len() as u32;
+                            stack.push(top);
+                            stack.push(size.to_le_bytes().to_vec());
+                        }
+
+                        // Bit logic
+                        Opcode::OP_EQUAL => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let a = stack.pop_unwrap();
+                            let b = stack.pop_unwrap();
+                            let is_equal =
+                                a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| x == y);
+                            stack.push(vec![is_equal as u8]);
+                        }
+                        Opcode::OP_EQUALVERIFY => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let lhs = stack.pop_unwrap();
+                            let rhs = stack.pop_unwrap();
+                            let is_equal = lhs.len() == rhs.len()
+                                && lhs.iter().zip(rhs.iter()).all(|(x, y)| x == y);
+                            stack.push(vec![is_equal as u8]);
+                            let res = stack.pop_unwrap();
+                            let is_true = res.len() == 1 && res[0] == 1;
+                            if !is_true {
+                                return false;
+                            }
+                        }
+
+                        // Crypto
+                        Opcode::OP_RIPEMD160 => {
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let data = stack.pop_unwrap();
+                            let mut hasher = Ripemd160::new();
+                            hasher.update(&data);
+                            let result = hasher.finalize();
+                            stack.push(result.to_vec());
+                        }
+                        Opcode::OP_SHA256 => {
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let data = stack.pop_unwrap();
+                            let result = Sha256::digest(&data);
+                            stack.push(result.to_vec());
+                        }
+                        Opcode::OP_HASH160 => {
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let hd = stack.pop_unwrap();
+                            let res = Sha256::digest(&hd);
+                            let mut hasher = Ripemd160::new();
+                            hasher.update(res);
+                            let result = hasher.finalize();
+                            stack.push(result.to_vec());
+                        }
+                        Opcode::OP_HASH256 => {
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let data = stack.pop_unwrap();
+                            let res1 = Sha256::digest(&data);
+                            let res2 = Sha256::digest(&res1);
+                            stack.push(res2.to_vec());
+                        }
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L1166
+                        Opcode::OP_SHA1 => {
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let data = stack.pop_unwrap();
+                            let result = Sha1::digest(&data);
+                            stack.push(result.to_vec());
+                        }
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L1178
+                        Opcode::OP_CODESEPARATOR => {
+                            // In Bitcoin, this opcode marks a boundary for signature checking
+                            // It affects which parts of the script are hashed for signature verification
+                            // For now, we implement it as a no-op since signature verification is TODO
+                            // TODO: Track the position for proper CHECKSIG implementation
+                        }
+                        Opcode::OP_CHECKSIG => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let _pubkey = stack.pop_unwrap();
+                            let _signature = stack.pop_unwrap();
+                            // TODO: Implement actual signature verification
+                            // For now, push true (1) as a placeholder
+                            stack.push(vec![1]);
+                        }
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L1254
+                        Opcode::OP_CHECKSIGVERIFY => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let _pubkey = stack.pop_unwrap();
+                            let _signature = stack.pop_unwrap();
+                            // TODO: Implement actual signature verification
+                            // For now, assume success as placeholder
+                            // In real implementation, this should:
+                            // 1. Perform CHECKSIG
+                            // 2. Then VERIFY (fail if false)
+                            // For now, we just succeed
+                        }
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L1258
+                        Opcode::OP_CHECKMULTISIG => {
+                            // Pop the number of public keys
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let n_pubkeys_bytes = stack.pop_unwrap();
+                            let n_pubkeys = if n_pubkeys_bytes.is_empty() {
+                                0
+                            } else {
+                                n_pubkeys_bytes[0] as usize
+                            };
+
+                            if n_pubkeys > 20 {
+                                return false; // Limit of 20 public keys
+                            }
+
+                            // Pop the public keys
+                            if !stack.has(n_pubkeys) {
+                                return false;
+                            }
+                            for _ in 0..n_pubkeys {
+                                stack.pop_unwrap();
+                            }
+
+                            // Pop the number of signatures
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let n_sigs_bytes = stack.pop_unwrap();
+                            let n_sigs = if n_sigs_bytes.is_empty() {
+                                0
+                            } else {
+                                n_sigs_bytes[0] as usize
+                            };
+
+                            if n_sigs > n_pubkeys {
+                                return false;
+                            }
+
+                            // Pop the signatures
+                            if !stack.has(n_sigs) {
+                                return false;
+                            }
+                            for _ in 0..n_sigs {
+                                stack.pop_unwrap();
+                            }
+
+                            // Pop the extra dummy value (Bitcoin Core bug workaround)
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            stack.pop_unwrap();
+
+                            // TODO: Implement actual signature verification
+                            // For now, push true (1) as a placeholder
+                            stack.push(vec![1]);
+                        }
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L1350
+                        Opcode::OP_CHECKMULTISIGVERIFY => {
+                            // This is CHECKMULTISIG followed by VERIFY
+                            // For now, we'll implement it similar to CHECKMULTISIG
+
+                            // Pop the number of public keys
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let n_pubkeys_bytes = stack.pop_unwrap();
+                            let n_pubkeys = if n_pubkeys_bytes.is_empty() {
+                                0
+                            } else {
+                                n_pubkeys_bytes[0] as usize
+                            };
+
+                            if n_pubkeys > 20 {
+                                return false;
+                            }
+
+                            // Pop the public keys
+                            if !stack.has(n_pubkeys) {
+                                return false;
+                            }
+                            for _ in 0..n_pubkeys {
+                                stack.pop_unwrap();
+                            }
+
+                            // Pop the number of signatures
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let n_sigs_bytes = stack.pop_unwrap();
+                            let n_sigs = if n_sigs_bytes.is_empty() {
+                                0
+                            } else {
+                                n_sigs_bytes[0] as usize
+                            };
+
+                            if n_sigs > n_pubkeys {
+                                return false;
+                            }
+
+                            // Pop the signatures
+                            if !stack.has(n_sigs) {
+                                return false;
+                            }
+                            for _ in 0..n_sigs {
+                                stack.pop_unwrap();
+                            }
+
+                            // Pop the extra dummy value
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            stack.pop_unwrap();
+
+                            // TODO: Implement actual signature verification
+                            // For now, assume success (don't push anything, just succeed)
+                        }
+                        // Reference: BIP 342 (Tapscript)
+                        Opcode::OP_CHECKSIGADD => {
+                            // This is a Tapscript opcode (BIP 342)
+                            // It's more complex and requires Schnorr signature support
+                            if !stack.has(3) {
+                                return false;
+                            }
+                            let _pubkey = stack.pop_unwrap();
+                            let _n = stack.pop_unwrap();
+                            let _signature = stack.pop_unwrap();
+
+                            // TODO: Implement Tapscript CHECKSIGADD
+                            // For now, push 1 as placeholder (successful signature)
+                            stack.push(vec![1]);
+                        }
+
+                        // Numeric operations
+                        Opcode::OP_1ADD => {
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let a = stack.pop_unwrap();
+                            if a.is_empty() {
+                                stack.push(vec![1]);
+                            } else {
+                                let val = a[0] as i32 + 1;
                                 stack.push(vec![val as u8]);
                             }
                         }
-                    }
-                    Opcode::OP_NEGATE => {
-                        if !stack.has(1) {
-                            return false;
-                        }
-                        let a = stack.pop_unwrap();
-                        if !a.is_empty() {
-                            if a[0] == 0x81 {
-                                // -1 becomes 1
-                                stack.push(vec![1]);
-                            } else if a[0] == 0 {
-                                stack.push(vec![0]);
-                            } else {
-                                // Positive becomes negative (add 0x80 flag)
-                                stack.push(vec![a[0] | 0x80]);
+                        Opcode::OP_1SUB => {
+                            if !stack.has(1) {
+                                return false;
                             }
-                        } else {
-                            stack.push(vec![0]);
+                            let a = stack.pop_unwrap();
+                            if a.is_empty() {
+                                stack.push(vec![0x81]); // -1
+                            } else {
+                                let val = a[0] as i32 - 1;
+                                if val < 0 {
+                                    stack.push(vec![0x81]); // -1 in Script format
+                                } else {
+                                    stack.push(vec![val as u8]);
+                                }
+                            }
                         }
-                    }
-                    Opcode::OP_ABS => {
-                        if !stack.has(1) {
-                            return false;
+                        Opcode::OP_NEGATE => {
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let a = stack.pop_unwrap();
+                            if !a.is_empty() {
+                                if a[0] == 0x81 {
+                                    // -1 becomes 1
+                                    stack.push(vec![1]);
+                                } else if a[0] == 0 {
+                                    stack.push(vec![0]);
+                                } else {
+                                    // Positive becomes negative (add 0x80 flag)
+                                    stack.push(vec![a[0] | 0x80]);
+                                }
+                            } else {
+                                stack.push(vec![0]);
+                            }
                         }
-                        let a = stack.pop_unwrap();
-                        if !a.is_empty() {
-                            // Remove sign bit if present
-                            stack.push(vec![a[0] & 0x7F]);
-                        } else {
-                            stack.push(vec![0]);
+                        Opcode::OP_ABS => {
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let a = stack.pop_unwrap();
+                            if !a.is_empty() {
+                                // Remove sign bit if present
+                                stack.push(vec![a[0] & 0x7F]);
+                            } else {
+                                stack.push(vec![0]);
+                            }
                         }
-                    }
-                    Opcode::OP_NOT => {
-                        if !stack.has(1) {
-                            return false;
+                        Opcode::OP_NOT => {
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let a = stack.pop_unwrap();
+                            let is_zero = a.is_empty() || a.iter().all(|&x| x == 0);
+                            stack.push(vec![is_zero as u8]);
                         }
-                        let a = stack.pop_unwrap();
-                        let is_zero = a.is_empty() || a.iter().all(|&x| x == 0);
-                        stack.push(vec![is_zero as u8]);
-                    }
-                    Opcode::OP_0NOTEQUAL => {
-                        if !stack.has(1) {
-                            return false;
+                        Opcode::OP_0NOTEQUAL => {
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let a = stack.pop_unwrap();
+                            let is_nonzero = !a.is_empty() && a.iter().any(|&x| x != 0);
+                            stack.push(vec![is_nonzero as u8]);
                         }
-                        let a = stack.pop_unwrap();
-                        let is_nonzero = !a.is_empty() && a.iter().any(|&x| x != 0);
-                        stack.push(vec![is_nonzero as u8]);
-                    }
-                    Opcode::OP_ADD => {
-                        if !stack.has(2) {
-                            return false;
+                        Opcode::OP_ADD => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let b = stack.pop_unwrap();
+                            let a = stack.pop_unwrap();
+                            let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
+                            let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
+                            let result = a_val + b_val;
+                            if result < 0 {
+                                stack.push(vec![(-result) as u8 | 0x80]);
+                            } else {
+                                stack.push(vec![result as u8]);
+                            }
                         }
-                        let b = stack.pop_unwrap();
-                        let a = stack.pop_unwrap();
-                        let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
-                        let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
-                        let result = a_val + b_val;
-                        if result < 0 {
-                            stack.push(vec![(-result) as u8 | 0x80]);
-                        } else {
-                            stack.push(vec![result as u8]);
+                        Opcode::OP_SUB => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let b = stack.pop_unwrap();
+                            let a = stack.pop_unwrap();
+                            let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
+                            let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
+                            let result = a_val - b_val;
+                            if result < 0 {
+                                stack.push(vec![(-result) as u8 | 0x80]);
+                            } else {
+                                stack.push(vec![result as u8]);
+                            }
                         }
-                    }
-                    Opcode::OP_SUB => {
-                        if !stack.has(2) {
-                            return false;
+                        Opcode::OP_BOOLAND => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let b = stack.pop_unwrap();
+                            let a = stack.pop_unwrap();
+                            let a_true = !a.is_empty() && a.iter().any(|&x| x != 0);
+                            let b_true = !b.is_empty() && b.iter().any(|&x| x != 0);
+                            stack.push(vec![(a_true && b_true) as u8]);
                         }
-                        let b = stack.pop_unwrap();
-                        let a = stack.pop_unwrap();
-                        let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
-                        let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
-                        let result = a_val - b_val;
-                        if result < 0 {
-                            stack.push(vec![(-result) as u8 | 0x80]);
-                        } else {
-                            stack.push(vec![result as u8]);
+                        Opcode::OP_BOOLOR => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let b = stack.pop_unwrap();
+                            let a = stack.pop_unwrap();
+                            let a_true = !a.is_empty() && a.iter().any(|&x| x != 0);
+                            let b_true = !b.is_empty() && b.iter().any(|&x| x != 0);
+                            stack.push(vec![(a_true || b_true) as u8]);
                         }
-                    }
-                    Opcode::OP_BOOLAND => {
-                        if !stack.has(2) {
-                            return false;
+                        Opcode::OP_NUMEQUAL => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let b = stack.pop_unwrap();
+                            let a = stack.pop_unwrap();
+                            let is_equal =
+                                a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| x == y);
+                            stack.push(vec![is_equal as u8]);
                         }
-                        let b = stack.pop_unwrap();
-                        let a = stack.pop_unwrap();
-                        let a_true = !a.is_empty() && a.iter().any(|&x| x != 0);
-                        let b_true = !b.is_empty() && b.iter().any(|&x| x != 0);
-                        stack.push(vec![(a_true && b_true) as u8]);
-                    }
-                    Opcode::OP_BOOLOR => {
-                        if !stack.has(2) {
-                            return false;
+                        Opcode::OP_NUMEQUALVERIFY => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let b = stack.pop_unwrap();
+                            let a = stack.pop_unwrap();
+                            let is_equal =
+                                a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| x == y);
+                            if !is_equal {
+                                return false;
+                            }
                         }
-                        let b = stack.pop_unwrap();
-                        let a = stack.pop_unwrap();
-                        let a_true = !a.is_empty() && a.iter().any(|&x| x != 0);
-                        let b_true = !b.is_empty() && b.iter().any(|&x| x != 0);
-                        stack.push(vec![(a_true || b_true) as u8]);
-                    }
-                    Opcode::OP_NUMEQUAL => {
-                        if !stack.has(2) {
-                            return false;
+                        Opcode::OP_NUMNOTEQUAL => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let b = stack.pop_unwrap();
+                            let a = stack.pop_unwrap();
+                            let is_not_equal =
+                                a.len() != b.len() || !a.iter().zip(b.iter()).all(|(x, y)| x == y);
+                            stack.push(vec![is_not_equal as u8]);
                         }
-                        let b = stack.pop_unwrap();
-                        let a = stack.pop_unwrap();
-                        let is_equal =
-                            a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| x == y);
-                        stack.push(vec![is_equal as u8]);
-                    }
-                    Opcode::OP_NUMEQUALVERIFY => {
-                        if !stack.has(2) {
-                            return false;
+                        Opcode::OP_LESSTHAN => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let b = stack.pop_unwrap();
+                            let a = stack.pop_unwrap();
+                            let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
+                            let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
+                            stack.push(vec![(a_val < b_val) as u8]);
                         }
-                        let b = stack.pop_unwrap();
-                        let a = stack.pop_unwrap();
-                        let is_equal =
-                            a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| x == y);
-                        if !is_equal {
-                            return false;
+                        Opcode::OP_GREATERTHAN => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let b = stack.pop_unwrap();
+                            let a = stack.pop_unwrap();
+                            let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
+                            let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
+                            stack.push(vec![(a_val > b_val) as u8]);
                         }
-                    }
-                    Opcode::OP_NUMNOTEQUAL => {
-                        if !stack.has(2) {
-                            return false;
+                        Opcode::OP_LESSTHANOREQUAL => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let b = stack.pop_unwrap();
+                            let a = stack.pop_unwrap();
+                            let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
+                            let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
+                            stack.push(vec![(a_val <= b_val) as u8]);
                         }
-                        let b = stack.pop_unwrap();
-                        let a = stack.pop_unwrap();
-                        let is_not_equal =
-                            a.len() != b.len() || !a.iter().zip(b.iter()).all(|(x, y)| x == y);
-                        stack.push(vec![is_not_equal as u8]);
-                    }
-                    Opcode::OP_LESSTHAN => {
-                        if !stack.has(2) {
-                            return false;
+                        Opcode::OP_GREATERTHANOREQUAL => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let b = stack.pop_unwrap();
+                            let a = stack.pop_unwrap();
+                            let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
+                            let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
+                            stack.push(vec![(a_val >= b_val) as u8]);
                         }
-                        let b = stack.pop_unwrap();
-                        let a = stack.pop_unwrap();
-                        let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
-                        let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
-                        stack.push(vec![(a_val < b_val) as u8]);
-                    }
-                    Opcode::OP_GREATERTHAN => {
-                        if !stack.has(2) {
-                            return false;
+                        Opcode::OP_MIN => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let b = stack.pop_unwrap();
+                            let a = stack.pop_unwrap();
+                            let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
+                            let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
+                            if a_val < b_val {
+                                stack.push(a);
+                            } else {
+                                stack.push(b);
+                            }
                         }
-                        let b = stack.pop_unwrap();
-                        let a = stack.pop_unwrap();
-                        let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
-                        let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
-                        stack.push(vec![(a_val > b_val) as u8]);
-                    }
-                    Opcode::OP_LESSTHANOREQUAL => {
-                        if !stack.has(2) {
-                            return false;
+                        Opcode::OP_MAX => {
+                            if !stack.has(2) {
+                                return false;
+                            }
+                            let b = stack.pop_unwrap();
+                            let a = stack.pop_unwrap();
+                            let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
+                            let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
+                            if a_val > b_val {
+                                stack.push(a);
+                            } else {
+                                stack.push(b);
+                            }
                         }
-                        let b = stack.pop_unwrap();
-                        let a = stack.pop_unwrap();
-                        let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
-                        let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
-                        stack.push(vec![(a_val <= b_val) as u8]);
-                    }
-                    Opcode::OP_GREATERTHANOREQUAL => {
-                        if !stack.has(2) {
-                            return false;
+                        Opcode::OP_WITHIN => {
+                            if !stack.has(3) {
+                                return false;
+                            }
+                            let max = stack.pop_unwrap();
+                            let min = stack.pop_unwrap();
+                            let x = stack.pop_unwrap();
+                            let x_val = if x.is_empty() { 0 } else { x[0] as i32 };
+                            let min_val = if min.is_empty() { 0 } else { min[0] as i32 };
+                            let max_val = if max.is_empty() { 0 } else { max[0] as i32 };
+                            let within = x_val >= min_val && x_val < max_val;
+                            stack.push(vec![within as u8]);
                         }
-                        let b = stack.pop_unwrap();
-                        let a = stack.pop_unwrap();
-                        let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
-                        let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
-                        stack.push(vec![(a_val >= b_val) as u8]);
-                    }
-                    Opcode::OP_MIN => {
-                        if !stack.has(2) {
-                            return false;
-                        }
-                        let b = stack.pop_unwrap();
-                        let a = stack.pop_unwrap();
-                        let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
-                        let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
-                        if a_val < b_val {
-                            stack.push(a);
-                        } else {
-                            stack.push(b);
-                        }
-                    }
-                    Opcode::OP_MAX => {
-                        if !stack.has(2) {
-                            return false;
-                        }
-                        let b = stack.pop_unwrap();
-                        let a = stack.pop_unwrap();
-                        let a_val = if a.is_empty() { 0 } else { a[0] as i32 };
-                        let b_val = if b.is_empty() { 0 } else { b[0] as i32 };
-                        if a_val > b_val {
-                            stack.push(a);
-                        } else {
-                            stack.push(b);
-                        }
-                    }
-                    Opcode::OP_WITHIN => {
-                        if !stack.has(3) {
-                            return false;
-                        }
-                        let max = stack.pop_unwrap();
-                        let min = stack.pop_unwrap();
-                        let x = stack.pop_unwrap();
-                        let x_val = if x.is_empty() { 0 } else { x[0] as i32 };
-                        let min_val = if min.is_empty() { 0 } else { min[0] as i32 };
-                        let max_val = if max.is_empty() { 0 } else { max[0] as i32 };
-                        let within = x_val >= min_val && x_val < max_val;
-                        stack.push(vec![within as u8]);
-                    }
 
-                    // Control flow
-                    Opcode::OP_NOP => {
-                        // No operation
-                    }
-                    Opcode::OP_VERIFY => {
-                        if !stack.has(1) {
-                            return false;
+                        // Control flow
+                        Opcode::OP_NOP => {
+                            // No operation
                         }
-                        let val = stack.pop_unwrap();
-                        let is_true = !val.is_empty() && val != vec![0];
-                        if !is_true {
-                            return false;
+                        Opcode::OP_VERIFY => {
+                            if !stack.has(1) {
+                                return false;
+                            }
+                            let val = stack.pop_unwrap();
+                            let is_true = !val.is_empty() && val != vec![0];
+                            if !is_true {
+                                return false;
+                            }
                         }
-                    }
 
-                    _ => unimplemented!("The opcode {opcode} is not implemented"),
-                },
+                        // Disabled/Reserved opcodes - always fail when executed
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L360
+                        Opcode::OP_RESERVED
+                        | Opcode::OP_VER
+                        | Opcode::OP_RESERVED1
+                        | Opcode::OP_RESERVED2 => {
+                            return false;
+                        }
+
+                        // Disabled opcodes - string operations
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L365
+                        Opcode::OP_CAT | Opcode::OP_SUBSTR | Opcode::OP_LEFT | Opcode::OP_RIGHT => {
+                            return false;
+                        }
+
+                        // Disabled opcodes - bitwise operations
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L369
+                        Opcode::OP_INVERT | Opcode::OP_AND | Opcode::OP_OR | Opcode::OP_XOR => {
+                            return false;
+                        }
+
+                        // Disabled opcodes - numeric operations
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L373
+                        Opcode::OP_2MUL
+                        | Opcode::OP_2DIV
+                        | Opcode::OP_MUL
+                        | Opcode::OP_DIV
+                        | Opcode::OP_MOD => {
+                            return false;
+                        }
+
+                        // Disabled opcodes - bit shift operations
+                        // Reference: https://github.com/bitcoin/bitcoin/blob/cac846c2fbf6fc69bfc288fd387aa3f68d84d584/src/script/interpreter.cpp#L377
+                        Opcode::OP_LSHIFT | Opcode::OP_RSHIFT => {
+                            return false;
+                        }
+
+                        _ => unimplemented!("The opcode {opcode} is not implemented"),
+                    }
+                }
             }
         }
         #[cfg(test)]
-        println!("Stack at the end: {:?}", stack.0);
+        println!("Stack at the end: {:?}", stack.main);
 
-        // Script succeeds if stack is not empty and top element is true
-        if stack.0.is_empty() {
+        // Check for unbalanced IF/ENDIF
+        if !vf_exec.is_empty() {
             return false;
         }
-        let top = &stack.0[stack.0.len() - 1];
+
+        // Script succeeds if stack is not empty and top element is true
+        if stack.main.is_empty() {
+            return false;
+        }
+        let top = &stack.main[stack.main.len() - 1];
         // Element is true if it's not empty and not all zeros
         !top.is_empty() && top.iter().any(|&x| x != 0)
     }
