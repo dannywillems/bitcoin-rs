@@ -1,5 +1,8 @@
 //! This module provides an implementation of Bitcoin script
 
+use alloc::format;
+use alloc::vec;
+use alloc::vec::Vec;
 use core::convert::From;
 use core::convert::Into;
 
@@ -31,6 +34,7 @@ impl Stack {
         self.0.is_empty()
     }
 
+    #[cfg(test)]
     pub fn debug(&self) {
         if self.is_empty() {
             println!("Stack is empty");
@@ -359,8 +363,8 @@ pub enum Opcode {
 }
 
 // FIXME: ignore if riscv32i
-impl std::fmt::Display for Opcode {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl core::fmt::Display for Opcode {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self {
             // push value
             Opcode::OP_0 => write!(f, "OP_0"),
@@ -846,8 +850,8 @@ pub enum Term {
 pub struct Script(Vec<Term>);
 
 // FIXME: ignore if riscv32i
-impl std::fmt::Display for Script {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl core::fmt::Display for Script {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         let mut s = Vec::new();
         for term in &self.0 {
             match term {
@@ -981,9 +985,12 @@ impl Script {
         let mut exp_bytes: Option<usize> = None;
         // FIXME: remove clone
         for c in self.0.clone() {
-            println!("Interpreting {:?}", c);
-            println!("------STACK-------");
-            stack.debug();
+            #[cfg(test)]
+            {
+                println!("Interpreting {:?}", c);
+                println!("------STACK-------");
+                stack.debug();
+            }
             match c {
                 Term::Data(v) => {
                     if exp_bytes.is_none() {
@@ -1042,6 +1049,7 @@ impl Script {
                 },
             }
         }
+        #[cfg(test)]
         println!("Stack at the end: {:?}", stack.0);
         stack.0.is_empty()
     }
@@ -1049,6 +1057,9 @@ impl Script {
 
 #[cfg(test)]
 mod tests {
+    use alloc::borrow::ToOwned;
+    use alloc::string::ToString;
+
     use super::*;
     use bincode::{deserialize, serialize};
     use hex;

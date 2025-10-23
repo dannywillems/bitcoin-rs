@@ -1,3 +1,5 @@
+use alloc::string::String;
+
 /// Implement the different type of Bitcoin addresses
 pub enum Address {
     P2PKH(String),

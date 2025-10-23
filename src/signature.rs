@@ -1,3 +1,6 @@
+use alloc::vec;
+use alloc::vec::Vec;
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Signature type hash/flags

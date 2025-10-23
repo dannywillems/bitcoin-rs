@@ -1,3 +1,6 @@
+use alloc::vec;
+use alloc::vec::Vec;
+
 use crate::script::Script;
 use crate::utils::CompactBytes;
 use serde::{Deserialize, Serialize};

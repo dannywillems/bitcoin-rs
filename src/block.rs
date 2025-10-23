@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::transaction::Transaction;
 use crate::utils::CompactBytes;
 use serde::{Deserialize, Serialize};

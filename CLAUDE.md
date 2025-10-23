@@ -95,6 +95,11 @@ compatibility:
 - **Rust formatting**: Always run `make format` after modifying any Rust file
 - **Markdown formatting**: Always run `make format-md` after editing any
   markdown file
+- **no_std requirement**: The library must not depend on std
+  - Use `#![cfg_attr(not(test), no_std)]` in lib.rs
+  - Import from `alloc` (Vec, String, format!, vec!) not std
+  - Import from `core` (core::fmt, core::convert) not std
+  - Verify with `cargo build --all-features --release` (builds in no_std mode)
 - **Testing requirement**: For each opcode implementation, a corresponding unit
   test must be implemented
 - **Opcode documentation**: Each opcode in the enum definition must document:

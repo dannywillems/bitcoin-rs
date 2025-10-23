@@ -1,3 +1,6 @@
+use alloc::vec;
+use alloc::vec::Vec;
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// A compact size field is used in network messages to indicate the size of an
